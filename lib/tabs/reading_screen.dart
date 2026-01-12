@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_context_menu/flutter_context_menu.dart';
@@ -402,6 +403,50 @@ class _ReadingScreenState extends State<ReadingScreen>
                         );
                       },
                     ),
+                    // תפריט 3 נקודות עם אפשרויות
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                      child: PopupMenuButton<String>(
+                        icon: const Icon(FluentIcons.more_vertical_24_regular, size: 18),
+                        tooltip: 'אפשרויות נוספות',
+                        style: _kIconButtonStyle,
+                        itemBuilder: (BuildContext context) => [
+                          if (state.hasOpenTabs && state.currentTabIndex < state.tabs.length)
+                            PopupMenuItem<String>(
+                              value: 'share_book',
+                              child: Row(
+                                children: [
+                                  const Icon(FluentIcons.share_24_regular, size: 16),
+                                  const SizedBox(width: 8),
+                                  const Text('העתק קישור לספר זה'),
+                                ],
+                              ),
+                            ),
+                          const PopupMenuItem<String>(
+                            value: 'settings',
+                            child: Row(
+                              children: [
+                                Icon(FluentIcons.settings_24_regular, size: 16),
+                                SizedBox(width: 8),
+                                Text('הגדרות תצוגת הספרים'),
+                              ],
+                            ),
+                          ),
+                        ],
+                        onSelected: (String value) async {
+                          switch (value) {
+                            case 'share_book':
+                              if (state.hasOpenTabs && state.currentTabIndex < state.tabs.length) {
+                                await _shareCurrentTab(state.tabs[state.currentTabIndex]);
+                              }
+                              break;
+                            case 'settings':
+                              showReadingSettingsDialog(context);
+                              break;
+                          }
+                        },
+                      ),
+                    ),
                     // כפתור הגדרות בצד שמאל של שורת הטאבים
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4.0),
@@ -588,6 +633,24 @@ class _ReadingScreenState extends State<ReadingScreen>
                     context.read<TabsBloc>().add(const DisableSideBySideMode()),
               ),
             ],
+            const MenuDivider(),
+            MenuItem.submenu(
+              label: const Text('שתף קישור ישיר'),
+              items: [
+                MenuItem(
+                  label: const Text('העתק קישור ישיר לספר זה'),
+                  onSelected: (_) => _shareBookLink(tab),
+                ),
+                MenuItem(
+                  label: const Text('העתק קישור ישיר למקטע זה'),
+                  onSelected: (_) => _shareSectionLink(tab),
+                ),
+                MenuItem(
+                  label: const Text('העתק קישור ישיר למקטע זה עם הדגשת טקסט'),
+                  onSelected: (_) => _shareTextHighlightLink(tab),
+                ),
+              ],
+            ),
             const MenuDivider(),
             // הוסרת אפשרות הצמדה לדף הבית לאחר הסרת דף הבית
             MenuItem.submenu(
@@ -897,6 +960,145 @@ class _ReadingScreenState extends State<ReadingScreen>
       context: context,
       builder: (context) => const BookmarksDialog(),
     );
+  }
+
+  Future<void> _shareCurrentTab(OpenedTab tab) async {
+    try {
+      // יצירת קישור בסיסי לטאב הנוכחי
+      String deepLink = '';
+      if (tab is TextBookTab) {
+        deepLink = 'otzaria://book/${tab.book.title}?index=${tab.index}';
+      } else if (tab is PdfBookTab) {
+        deepLink = 'otzaria://pdf/${tab.book.title}?page=${tab.pageNumber}';
+      } else {
+        deepLink = 'otzaria://book/${tab.title}';
+      }
+      
+      // העתקה ללוח
+      await Clipboard.setData(ClipboardData(text: deepLink));
+      
+      // הצגת הודעה למשתמש
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('קישור לספר "${tab.title}" הועתק ללוח'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      // הצגת שגיאה
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('שגיאה ביצירת קישור: $e'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _shareBookLink(OpenedTab tab) async {
+    try {
+      // יצירת קישור בסיסי לספר (ללא מיקום ספציפי)
+      String deepLink = '';
+      if (tab is TextBookTab) {
+        deepLink = 'otzaria://book/${tab.book.title}';
+      } else if (tab is PdfBookTab) {
+        deepLink = 'otzaria://pdf/${tab.book.title}';
+      } else {
+        deepLink = 'otzaria://book/${tab.title}';
+      }
+      
+      await Clipboard.setData(ClipboardData(text: deepLink));
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('קישור ישיר לספר "${tab.title}" הועתק ללוח'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('שגיאה ביצירת קישור: $e'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _shareSectionLink(OpenedTab tab) async {
+    try {
+      // יצירת קישור למקטע הנוכחי
+      String deepLink = '';
+      if (tab is TextBookTab) {
+        deepLink = 'otzaria://book/${tab.book.title}?index=${tab.index}';
+      } else if (tab is PdfBookTab) {
+        deepLink = 'otzaria://pdf/${tab.book.title}?page=${tab.pageNumber}';
+      } else {
+        deepLink = 'otzaria://book/${tab.title}';
+      }
+      
+      await Clipboard.setData(ClipboardData(text: deepLink));
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('קישור ישיר למקטע הנוכחי ב"${tab.title}" הועתק ללוח'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('שגיאה ביצירת קישור: $e'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _shareTextHighlightLink(OpenedTab tab) async {
+    try {
+      // יצירת קישור עם הדגשת טקסט (אם יש טקסט נבחר)
+      String deepLink = '';
+      if (tab is TextBookTab) {
+        deepLink = 'otzaria://book/${tab.book.title}?index=${tab.index}&highlight=true';
+      } else if (tab is PdfBookTab) {
+        deepLink = 'otzaria://pdf/${tab.book.title}?page=${tab.pageNumber}&highlight=true';
+      } else {
+        deepLink = 'otzaria://book/${tab.title}?highlight=true';
+      }
+      
+      await Clipboard.setData(ClipboardData(text: deepLink));
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('קישור ישיר עם הדגשה ב"${tab.title}" הועתק ללוח'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('שגיאה ביצירת קישור: $e'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 }
 
