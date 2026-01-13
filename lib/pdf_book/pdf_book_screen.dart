@@ -18,6 +18,7 @@ import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:otzaria/settings/settings_event.dart';
 import 'package:otzaria/settings/settings_state.dart';
 import 'package:otzaria/tabs/models/pdf_tab.dart';
+import 'package:otzaria/utils/sharing_utils.dart';
 import 'package:otzaria/tabs/models/text_tab.dart';
 import 'package:otzaria/utils/open_book.dart';
 import 'package:otzaria/utils/ref_helper.dart';
@@ -28,7 +29,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'pdf_outlines_screen.dart';
 import 'package:otzaria/widgets/password_dialog.dart';
 import 'pdf_thumbnails_screen.dart';
-import 'package:printing/printing.dart';
+// import 'package:printing/printing.dart'; // Temporarily disabled
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/utils/page_converter.dart';
 import 'package:flutter/gestures.dart';
@@ -1229,6 +1230,30 @@ class _PdfBookScreenState extends State<PdfBookScreen>
   /// כפתורים שתמיד יהיו בתפריט "..."
   List<ActionButtonData> _buildAlwaysInMenuPdfActions(BuildContext context) {
     return [
+      // העתק קישור לספר זה - ראשון בתפריט
+      ActionButtonData(
+        widget: IconButton(
+          icon: const Icon(FluentIcons.share_24_regular),
+          tooltip: 'העתק קישור לספר זה',
+          onPressed: () => _shareCurrentPdfBook(context),
+        ),
+        icon: FluentIcons.share_24_regular,
+        tooltip: 'העתק קישור לספר זה',
+        onPressed: () => _shareCurrentPdfBook(context),
+      ),
+
+      // העתק קישור לדף זה - שני בתפריט
+      ActionButtonData(
+        widget: IconButton(
+          icon: const Icon(FluentIcons.link_24_regular),
+          tooltip: 'העתק קישור לדף זה',
+          onPressed: () => _shareCurrentPdfPage(context),
+        ),
+        icon: FluentIcons.link_24_regular,
+        tooltip: 'העתק קישור לדף זה',
+        onPressed: () => _shareCurrentPdfPage(context),
+      ),
+
       // כפתורי ניווט - רק בתצוגה משולבת
       if (widget.isInCombinedView) ...[
         ActionButtonData(
@@ -1605,11 +1630,17 @@ class _PdfBookScreenState extends State<PdfBookScreen>
 
   /// טיפול בלחיצה על כפתור ההדפסה
   Future<void> _handlePrintPress(BuildContext context) async {
+    // Temporarily disabled due to printing plugin issues
+    /*
     final file = File(widget.tab.book.path);
     final fileName = file.uri.pathSegments.last;
     await Printing.sharePdf(
       bytes: await file.readAsBytes(),
       filename: fileName,
+    );
+    */
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('הדפסה זמנית מושבתת')),
     );
   }
 
@@ -1676,6 +1707,38 @@ class _PdfBookScreenState extends State<PdfBookScreen>
           ),
         ),
       ),
+    );
+  }
+
+  /// שיתוף קישור לספר PDF הנוכחי
+  void _shareCurrentPdfBook(BuildContext context) {
+    // יצירת PdfBookTab מהמצב הנוכחי
+    final tab = PdfBookTab(
+      book: widget.tab.book,
+      pageNumber: widget.tab.pdfViewerController.pageNumber ?? 1,
+    );
+
+    // שימוש ב-SharingUtils לשיתוף
+    SharingUtils.shareBookLink(
+      tab,
+      (message) => UiSnack.showQuick(message),
+      (error) => UiSnack.showError(error),
+    );
+  }
+
+  /// שיתוף קישור לדף הנוכחי בספר PDF
+  void _shareCurrentPdfPage(BuildContext context) {
+    // יצירת PdfBookTab מהמצב הנוכחי עם מספר הדף הנוכחי
+    final tab = PdfBookTab(
+      book: widget.tab.book,
+      pageNumber: widget.tab.pdfViewerController.pageNumber ?? 1,
+    );
+
+    // שימוש ב-SharingUtils לשיתוף קישור לדף ספציפי
+    SharingUtils.shareSectionLink(
+      tab,
+      (message) => UiSnack.showQuick(message),
+      (error) => UiSnack.showError(error),
     );
   }
 }

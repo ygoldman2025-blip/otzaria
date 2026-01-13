@@ -24,6 +24,7 @@ import 'package:otzaria/core/scaffold_messenger.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import 'package:otzaria/utils/html_link_handler.dart';
 import 'package:otzaria/utils/text_with_inline_links.dart';
+import 'package:otzaria/utils/sharing_utils.dart';
 import 'package:otzaria/search/models/search_configuration.dart';
 
 class CombinedView extends StatefulWidget {
@@ -240,112 +241,17 @@ class _CombinedViewState extends State<CombinedView> {
             label: const Text('חיפוש'),
             icon: const Icon(FluentIcons.search_24_regular),
             onSelected: (_) => widget.openLeftPaneTab(1)),
-        ctx.MenuItem.submenu(
+        ctx.MenuItem(
           label: const Text('מפרשים'),
           icon: const Icon(FluentIcons.book_24_regular),
           enabled: state.availableCommentators.isNotEmpty,
-          items: [
-            ctx.MenuItem(
-              label: const Text('הצג את כל המפרשים'),
-              icon: state.activeCommentators
-                      .toSet()
-                      .containsAll(state.availableCommentators)
-                  ? const Icon(FluentIcons.checkmark_24_regular)
-                  : null,
-              onSelected: (_) {
-                final allActive = state.activeCommentators
-                    .toSet()
-                    .containsAll(state.availableCommentators);
-                final isAdding = !allActive;
-                context.read<TextBookBloc>().add(
-                      UpdateCommentators(
-                        allActive
-                            ? <String>[]
-                            : List<String>.from(state.availableCommentators),
-                      ),
-                    );
-                _openCommentatorsPane(isAdding: isAdding);
-              },
-            ),
-            const ctx.MenuDivider(),
-            ..._buildGroup(tanachGroup.title, tanachGroup.commentators, state),
-            if (tanachGroup.commentators.isNotEmpty &&
-                chazalGroup.commentators.isNotEmpty)
-              const ctx.MenuDivider(),
-            ..._buildGroup(chazalGroup.title, chazalGroup.commentators, state),
-            if ((chazalGroup.commentators.isNotEmpty &&
-                    rishonimGroup.commentators.isNotEmpty) ||
-                (chazalGroup.commentators.isEmpty &&
-                    tanachGroup.commentators.isNotEmpty &&
-                    rishonimGroup.commentators.isNotEmpty))
-              const ctx.MenuDivider(),
-            ..._buildGroup(
-                rishonimGroup.title, rishonimGroup.commentators, state),
-            if ((rishonimGroup.commentators.isNotEmpty &&
-                    acharonimGroup.commentators.isNotEmpty) ||
-                (rishonimGroup.commentators.isEmpty &&
-                    chazalGroup.commentators.isNotEmpty &&
-                    acharonimGroup.commentators.isNotEmpty) ||
-                (rishonimGroup.commentators.isEmpty &&
-                    chazalGroup.commentators.isEmpty &&
-                    tanachGroup.commentators.isNotEmpty &&
-                    acharonimGroup.commentators.isNotEmpty))
-              const ctx.MenuDivider(),
-            ..._buildGroup(
-                acharonimGroup.title, acharonimGroup.commentators, state),
-            if ((acharonimGroup.commentators.isNotEmpty &&
-                    modernGroup.commentators.isNotEmpty) ||
-                (acharonimGroup.commentators.isEmpty &&
-                    rishonimGroup.commentators.isNotEmpty &&
-                    modernGroup.commentators.isNotEmpty) ||
-                (acharonimGroup.commentators.isEmpty &&
-                    rishonimGroup.commentators.isEmpty &&
-                    chazalGroup.commentators.isNotEmpty &&
-                    modernGroup.commentators.isNotEmpty) ||
-                (acharonimGroup.commentators.isEmpty &&
-                    rishonimGroup.commentators.isEmpty &&
-                    chazalGroup.commentators.isEmpty &&
-                    tanachGroup.commentators.isNotEmpty &&
-                    modernGroup.commentators.isNotEmpty))
-              const ctx.MenuDivider(),
-            ..._buildGroup(modernGroup.title, modernGroup.commentators, state),
-            if ((tanachGroup.commentators.isNotEmpty ||
-                    chazalGroup.commentators.isNotEmpty ||
-                    rishonimGroup.commentators.isNotEmpty ||
-                    acharonimGroup.commentators.isNotEmpty ||
-                    modernGroup.commentators.isNotEmpty) &&
-                ungrouped.isNotEmpty)
-              const ctx.MenuDivider(),
-            ..._buildGroup(ungroupedGroup.title, ungrouped, state),
-          ],
+          onSelected: (_) => widget.openLeftPaneTab(0),
         ),
-        ctx.MenuItem.submenu(
+        ctx.MenuItem(
           label: const Text('קישורים'),
           icon: const Icon(FluentIcons.link_24_regular),
           enabled: state.visibleLinks.isNotEmpty,
-          items: state.visibleLinks
-              .map(
-                (link) => ctx.MenuItem(
-                  label: Text(link.heRef),
-                  onSelected: (_) {
-                    widget.openBookCallback(
-                      TextBookTab(
-                        book: TextBook(
-                          title: utils.getTitleFromPath(link.path2),
-                        ),
-                        index: link.index2 - 1,
-                        openLeftPane:
-                            (Settings.getValue<bool>('key-pin-sidebar') ??
-                                    false) ||
-                                (Settings.getValue<bool>(
-                                        'key-default-sidebar-open') ??
-                                    false),
-                      ),
-                    );
-                  },
-                ),
-              )
-              .toList(),
+          onSelected: (_) => widget.openLeftPaneTab(1),
         ),
         const ctx.MenuDivider(),
         // הערות אישיות
@@ -373,6 +279,36 @@ class _CombinedViewState extends State<CombinedView> {
           label: const Text('העתק את הטקסט המוצג'),
           icon: const Icon(FluentIcons.copy_select_24_regular),
           onSelected: (_) => _copyVisibleText(),
+        ),
+        const ctx.MenuDivider(),
+        // העתק קישור לספר זה - כפריט נפרד
+        ctx.MenuItem(
+          label: const Text('העתק קישור לספר זה'),
+          icon: const Icon(FluentIcons.share_24_regular),
+          onSelected: (_) => _shareBookLink(),
+        ),
+        const ctx.MenuDivider(),
+        // תת-תפריט שיתוף קישורים ישירים
+        ctx.MenuItem.submenu(
+          label: const Text('שתף קישור ישיר'),
+          icon: const Icon(FluentIcons.share_24_regular),
+          items: [
+            ctx.MenuItem(
+              label: const Text('העתק קישור ישיר לספר זה'),
+              icon: const Icon(FluentIcons.book_24_regular),
+              onSelected: (_) => _shareBookLinkDirect(),
+            ),
+            ctx.MenuItem(
+              label: const Text('העתק קישור ישיר למקטע זה'),
+              icon: const Icon(FluentIcons.document_24_regular),
+              onSelected: (_) => _shareSectionLinkDirect(),
+            ),
+            ctx.MenuItem(
+              label: const Text('העתק קישור ישיר למקטע זה עם הדגשת טקסט'),
+              icon: const Icon(FluentIcons.highlight_24_regular),
+              onSelected: (_) => _shareTextHighlightLinkDirect(),
+            ),
+          ],
         ),
         const ctx.MenuDivider(),
         // Edit paragraph option
@@ -1019,6 +955,73 @@ $textWithBreaks
     if (paragraphIndex >= 0 && paragraphIndex < widget.data.length) {
       context.read<TextBookBloc>().add(OpenEditor(index: paragraphIndex));
     }
+  }
+
+  /// שיתוף קישור לספר (פונקציה ישנה לתאימות לאחור)
+  Future<void> _shareBookLink() async {
+    await _shareBookLinkDirect();
+  }
+  Future<void> _shareBookLinkDirect() async {
+    await SharingUtils.shareBookLink(
+      widget.tab,
+      (message) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+          );
+        }
+      },
+      (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error), duration: const Duration(seconds: 2)),
+          );
+        }
+      },
+    );
+  }
+
+  /// שיתוף קישור למקטע באמצעות SharingUtils
+  Future<void> _shareSectionLinkDirect() async {
+    await SharingUtils.shareSectionLink(
+      widget.tab,
+      (message) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+          );
+        }
+      },
+      (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error), duration: const Duration(seconds: 2)),
+          );
+        }
+      },
+    );
+  }
+
+  /// שיתוף קישור עם הדגשת טקסט באמצעות SharingUtils
+  Future<void> _shareTextHighlightLinkDirect() async {
+    await SharingUtils.shareHighlightedTextLink(
+      widget.tab,
+      (message) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+          );
+        }
+      },
+      (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error), duration: const Duration(seconds: 2)),
+          );
+        }
+      },
+      selectedText: _savedSelectedText,
+    );
   }
 }
 

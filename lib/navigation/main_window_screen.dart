@@ -32,9 +32,13 @@ import 'package:otzaria/navigation/calendar_cubit.dart';
 import 'package:otzaria/widgets/ad_popup_dialog.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:otzaria/main.dart' show appWindowListener;
+import 'package:otzaria/utils/html_link_handler.dart';
+import 'package:otzaria/utils/url_handler_service.dart';
 
 class MainWindowScreen extends StatefulWidget {
-  const MainWindowScreen({super.key});
+  final String? initialUrl;
+  
+  const MainWindowScreen({super.key, this.initialUrl});
 
   @override
   MainWindowScreenState createState() => MainWindowScreenState();
@@ -87,6 +91,22 @@ class MainWindowScreenState extends State<MainWindowScreen>
 
     // Setup fullscreen sync with window manager
     _setupFullscreenSync();
+
+    // Handle initial URL if provided
+    if (widget.initialUrl != null) {
+      debugPrint('MainWindowScreen: Initial URL provided: ${widget.initialUrl}');
+      _handleInitialUrl(widget.initialUrl!);
+    } else {
+      debugPrint('MainWindowScreen: No initial URL provided');
+    }
+
+    // Set up URL handler for inter-process communication
+    UrlHandlerService.setUrlHandler((url) {
+      debugPrint('MainWindowScreen: Received URL from another instance: $url');
+      // Bring window to front when receiving URL from another instance
+      _bringWindowToFront();
+      _handleInitialUrl(url);
+    });
   }
 
   /// Setup synchronization between window fullscreen state and settings
@@ -144,6 +164,70 @@ class MainWindowScreenState extends State<MainWindowScreen>
     _calendarCubit.close();
     pageController.dispose();
     super.dispose();
+  }
+
+  /// Bring the window to front and focus it
+  Future<void> _bringWindowToFront() async {
+    if (kIsWeb || (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS)) {
+      return;
+    }
+
+    try {
+      // Show the window if it's minimized
+      if (await windowManager.isMinimized()) {
+        await windowManager.restore();
+      }
+      
+      // Bring to front and focus
+      await windowManager.show();
+      await windowManager.focus();
+      
+      debugPrint('MainWindowScreen: Brought window to front');
+    } catch (e) {
+      debugPrint('MainWindowScreen: Error bringing window to front: $e');
+    }
+  }
+
+  /// Handle initial URL when app is launched with otzaria:// scheme
+  void _handleInitialUrl(String url) {
+    debugPrint('MainWindowScreen: Received initial URL: $url');
+    
+    // Wait for the app to be fully initialized before handling the URL
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Wait for library to load
+      await Future.delayed(const Duration(milliseconds: 2000));
+      
+      if (!mounted) {
+        debugPrint('MainWindowScreen: Widget not mounted, skipping URL handling');
+        return;
+      }
+      
+      debugPrint('MainWindowScreen: Starting URL handling for: $url');
+      
+      try {
+        // Handle the URL using the existing link handler
+        final success = await HtmlLinkHandler.handleLink(
+          context,
+          url,
+          (tab) {
+            debugPrint('MainWindowScreen: Opening tab: ${tab.title}');
+            // Open the tab using the TabsBloc
+            context.read<TabsBloc>().add(AddTab(tab));
+            // Navigate to reading screen
+            context.read<NavigationBloc>().add(const NavigateToScreen(Screen.reading));
+          },
+        );
+        
+        if (success) {
+          debugPrint('MainWindowScreen: URL handled successfully');
+        } else {
+          debugPrint('MainWindowScreen: URL handling returned false');
+        }
+      } catch (e, stackTrace) {
+        debugPrint('MainWindowScreen: Error handling URL: $e');
+        debugPrint('MainWindowScreen: Stack trace: $stackTrace');
+      }
+    });
   }
 
   void _handleOrientationChange(BuildContext context, Orientation orientation) {

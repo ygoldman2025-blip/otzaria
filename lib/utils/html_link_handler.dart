@@ -4,7 +4,9 @@ import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/data/repository/data_repository.dart';
 import 'package:otzaria/core/scaffold_messenger.dart';
 import 'package:otzaria/models/books.dart';
+import 'package:otzaria/tabs/models/tab.dart';
 import 'package:otzaria/tabs/models/text_tab.dart';
+import 'package:otzaria/tabs/models/pdf_tab.dart';
 import 'package:otzaria/text_book/bloc/text_book_bloc.dart';
 import 'package:otzaria/text_book/bloc/text_book_state.dart';
 
@@ -33,7 +35,7 @@ class HtmlLinkHandler {
   static Future<void> _handleInlineLink(
     BuildContext context,
     String url,
-    Function(TextBookTab) openBookCallback,
+    Function(OpenedTab) openBookCallback,
   ) async {
     try {
       // פענוח ה-URL ולקיחת הפרמטרים
@@ -87,6 +89,194 @@ class HtmlLinkHandler {
     }
   }
 
+  /// מטפל בקישורי שיתוף (otzaria://book/ ו-otzaria://pdf/)
+  static Future<void> _handleSharingLink(
+    BuildContext context,
+    String url,
+    Function(OpenedTab) openBookCallback,
+  ) async {
+    try {
+      debugPrint('HtmlLinkHandler: Processing sharing link: $url');
+      
+      // Clean the URL first - handle encoding issues
+      String cleanUrl = url.trim();
+      
+      // Handle potential double encoding
+      if (cleanUrl.contains('%25')) {
+        cleanUrl = Uri.decodeComponent(cleanUrl);
+        debugPrint('HtmlLinkHandler: Decoded double-encoded URL: $cleanUrl');
+      }
+      
+      Uri uri;
+      try {
+        uri = Uri.parse(cleanUrl);
+      } catch (e) {
+        debugPrint('HtmlLinkHandler: Failed to parse URL, trying with encoding fix: $e');
+        // Try to fix encoding issues
+        cleanUrl = cleanUrl.replaceAll(' ', '%20');
+        uri = Uri.parse(cleanUrl);
+      }
+      
+      final pathSegments = uri.pathSegments;
+      final isPdf = cleanUrl.startsWith('otzaria://pdf/');
+      
+      debugPrint('HtmlLinkHandler: Path segments: $pathSegments');
+      debugPrint('HtmlLinkHandler: Query parameters: ${uri.queryParameters}');
+      debugPrint('HtmlLinkHandler: Is PDF: $isPdf');
+      
+      if (pathSegments.isEmpty) {
+        throw Exception('קישור לא תקין - חסר שם ספר');
+      }
+
+      // Get book title and handle encoding
+      String bookTitle = pathSegments.first;
+      
+      // Try to decode if it's still encoded
+      if (bookTitle.contains('%')) {
+        try {
+          bookTitle = Uri.decodeComponent(bookTitle);
+          debugPrint('HtmlLinkHandler: Decoded book title: $bookTitle');
+        } catch (e) {
+          debugPrint('HtmlLinkHandler: Failed to decode book title: $e');
+        }
+      }
+      
+      final queryParams = uri.queryParameters;
+      
+      debugPrint('HtmlLinkHandler: Looking for book: $bookTitle (PDF: $isPdf)');
+      
+      // מציאת הספר בספרייה
+      final library = await DataRepository.instance.library;
+      
+      // Look for the appropriate book type
+      final foundBook = isPdf 
+          ? library.findBookByTitle(bookTitle, PdfBook)
+          : library.findBookByTitle(bookTitle, TextBook);
+
+      if (foundBook == null) {
+        debugPrint('HtmlLinkHandler: Book not found: $bookTitle');
+        throw Exception('לא נמצא ספר בשם: $bookTitle');
+      }
+
+      if (isPdf) {
+        if (foundBook is! PdfBook) {
+          debugPrint('HtmlLinkHandler: Book is not PdfBook: ${foundBook.runtimeType}');
+          throw Exception('הספר $bookTitle אינו ספר PDF');
+        }
+
+        // Handle PDF book
+        int startPage = 1;
+        if (queryParams.containsKey('page')) {
+          final pageStr = queryParams['page'];
+          final parsedPage = int.tryParse(pageStr ?? '');
+          if (parsedPage != null && parsedPage > 0) {
+            startPage = parsedPage;
+            debugPrint('HtmlLinkHandler: Using page: $startPage');
+          }
+        }
+
+        debugPrint('HtmlLinkHandler: Creating PDF tab for book: $bookTitle at page: $startPage');
+
+        // Create PDF tab
+        final pdfTab = PdfBookTab(
+          book: foundBook,
+          pageNumber: startPage,
+        );
+
+        // Call the callback with the PDF tab
+        openBookCallback(pdfTab);
+
+        debugPrint('HtmlLinkHandler: Successfully created PDF tab');
+        
+        if (context.mounted) {
+          UiSnack.show('נפתח ספר PDF: $bookTitle (עמוד $startPage)');
+        }
+        
+      } else {
+        // Handle text book (existing logic)
+        if (foundBook is! TextBook) {
+          debugPrint('HtmlLinkHandler: Book is not TextBook: ${foundBook.runtimeType}');
+          throw Exception('הספר $bookTitle אינו ספר טקסט');
+        }
+
+        // קביעת האינדקס ההתחלתי
+        int startIndex = 0;
+        if (queryParams.containsKey('index')) {
+          final indexStr = queryParams['index'];
+          final parsedIndex = int.tryParse(indexStr ?? '');
+          if (parsedIndex != null && parsedIndex >= 0) {
+            startIndex = parsedIndex;
+            debugPrint('HtmlLinkHandler: Using index: $startIndex');
+          }
+        }
+
+        debugPrint('HtmlLinkHandler: Creating tab for book: $bookTitle at index: $startIndex');
+
+        // קביעת הטקסט להדגשה
+        String highlightText = '';
+        if (queryParams.containsKey('highlight')) {
+          final highlightParam = queryParams['highlight'];
+          if (highlightParam != null && highlightParam.isNotEmpty && highlightParam != 'true') {
+            try {
+              String decodedText = highlightParam;
+              
+              // Handle multiple encoding layers
+              if (decodedText.contains('%')) {
+                decodedText = Uri.decodeComponent(decodedText);
+                debugPrint('HtmlLinkHandler: First decode: $decodedText');
+                
+                // Check if still encoded
+                if (decodedText.contains('%')) {
+                  decodedText = Uri.decodeComponent(decodedText);
+                  debugPrint('HtmlLinkHandler: Second decode: $decodedText');
+                }
+              }
+              
+              highlightText = decodedText;
+              debugPrint('HtmlLinkHandler: Will highlight text: $highlightText');
+            } catch (e) {
+              debugPrint('HtmlLinkHandler: Failed to decode highlight text: $e');
+            }
+          }
+        }
+
+        // פתיחת הספר
+        final tab = TextBookTab(
+          book: foundBook,
+          index: startIndex,
+          highlightText: highlightText,
+          openLeftPane: (Settings.getValue<bool>('key-pin-sidebar') ?? false) ||
+              (Settings.getValue<bool>('key-default-sidebar-open') ?? false),
+        );
+
+        openBookCallback(tab);
+
+        // הצגת הודעה למשתמש
+        if (context.mounted) {
+          String message;
+          if (highlightText.isNotEmpty) {
+            message = startIndex > 0 
+              ? 'נפתח ספר: $bookTitle (מקטע $startIndex) עם הדגשה: $highlightText'
+              : 'נפתח ספר: $bookTitle עם הדגשה: $highlightText';
+          } else {
+            message = startIndex > 0 
+              ? 'נפתח ספר: $bookTitle (מקטע $startIndex)'
+              : 'נפתח ספר: $bookTitle';
+          }
+          UiSnack.show(message);
+        }
+      }
+      
+      debugPrint('HtmlLinkHandler: Successfully handled sharing link');
+    } catch (e) {
+      debugPrint('HtmlLinkHandler: שגיאה בטיפול בקישור שיתוף: $e');
+
+      if (context.mounted) {
+        UiSnack.show('לא ניתן לפתוח את הקישור: $e');
+      }
+    }
+  }
+
   /// מחלץ שם ספר מנתיב קובץ
   static String _getTitleFromPath(String path) {
     // הסרת סיומת קובץ ונתיב
@@ -114,12 +304,18 @@ class HtmlLinkHandler {
   static Future<bool> handleLink(
     BuildContext context,
     String url,
-    Function(TextBookTab) openBookCallback,
+    Function(OpenedTab) openBookCallback,
   ) async {
     try {
       // בדיקה אם זה קישור מבוסס תווים (inline-link)
       if (url.startsWith('otzaria://inline-link')) {
         await _handleInlineLink(context, url, openBookCallback);
+        return true;
+      }
+
+      // בדיקה אם זה קישור שיתוף (otzaria://book/ או otzaria://pdf/)
+      if (url.startsWith('otzaria://book/') || url.startsWith('otzaria://pdf/')) {
+        await _handleSharingLink(context, url, openBookCallback);
         return true;
       }
 
@@ -219,7 +415,7 @@ class HtmlLinkHandler {
     BuildContext context,
     String bookTitle,
     String? headerName,
-    Function(TextBookTab) openBookCallback,
+    Function(OpenedTab) openBookCallback,
   ) async {
     try {
       // חיפוש הספר בספרייה

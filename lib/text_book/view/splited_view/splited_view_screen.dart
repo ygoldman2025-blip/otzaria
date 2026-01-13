@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_context_menu/flutter_context_menu.dart';
@@ -16,6 +17,7 @@ import 'package:otzaria/settings/settings_event.dart';
 import 'package:otzaria/widgets/commentary_pane_tooltip.dart';
 import 'package:otzaria/widgets/resizable_drag_handle.dart';
 import 'package:otzaria/utils/context_menu_utils.dart';
+import 'package:otzaria/utils/sharing_utils.dart';
 
 class SplitedViewScreen extends StatefulWidget {
   const SplitedViewScreen({
@@ -205,6 +207,29 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
           onSelected: (_) =>
               _selectionKey.currentState?.selectableRegion.selectAll(),
         ),
+        const MenuDivider(),
+        // שיתוף קישורים
+        MenuItem.submenu(
+          label: const Text('שתף קישור ישיר'),
+          icon: const Icon(FluentIcons.share_24_regular),
+          items: [
+            MenuItem(
+              label: const Text('העתק קישור ישיר לספר זה'),
+              icon: const Icon(FluentIcons.link_24_regular),
+              onSelected: (_) => _shareBookLink(),
+            ),
+            MenuItem(
+              label: const Text('העתק קישור ישיר למקטע זה'),
+              icon: const Icon(FluentIcons.link_square_24_regular),
+              onSelected: (_) => _shareSectionLink(),
+            ),
+            MenuItem(
+              label: const Text('העתק קישור ישיר למקטע זה עם הדגשת טקסט'),
+              icon: const Icon(FluentIcons.highlight_24_regular),
+              onSelected: (_) => _shareTextHighlightLink(),
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -382,6 +407,90 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
           );
         },
       ),
+    );
+  }
+
+  /// שיתוף קישור לספר
+  Future<void> _shareBookLink() async {
+    final state = context.read<TextBookBloc>().state;
+    if (state is! TextBookLoaded) return;
+    
+    // יצירת TextBookTab זמני לשימוש ב-SharingUtils
+    final tempTab = TextBookTab(book: state.book, index: 0);
+    
+    await SharingUtils.shareBookLink(
+      tempTab,
+      (message) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+          );
+        }
+      },
+      (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error), duration: const Duration(seconds: 2)),
+          );
+        }
+      },
+    );
+  }
+
+  /// שיתוף קישור למקטע הנוכחי
+  Future<void> _shareSectionLink() async {
+    final state = context.read<TextBookBloc>().state;
+    if (state is! TextBookLoaded) return;
+    
+    // יצירת TextBookTab זמני עם האינדקס הנכון
+    final currentIndex = state.selectedIndex ?? 0;
+    final tempTab = TextBookTab(book: state.book, index: currentIndex);
+    
+    await SharingUtils.shareSectionLink(
+      tempTab,
+      (message) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+          );
+        }
+      },
+      (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error), duration: const Duration(seconds: 2)),
+          );
+        }
+      },
+    );
+  }
+
+  /// שיתוף קישור עם הדגשת טקסט
+  Future<void> _shareTextHighlightLink() async {
+    final state = context.read<TextBookBloc>().state;
+    if (state is! TextBookLoaded) return;
+    
+    // יצירת TextBookTab זמני עם האינדקס הנכון
+    final currentIndex = state.selectedIndex ?? 0;
+    final tempTab = TextBookTab(book: state.book, index: currentIndex);
+    
+    await SharingUtils.shareHighlightedTextLink(
+      tempTab,
+      (message) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+          );
+        }
+      },
+      (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error), duration: const Duration(seconds: 2)),
+          );
+        }
+      },
+      selectedText: _savedSelectedText,
     );
   }
 }

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Otzaria URL Scheme - Updated</title>
+    <meta charset="utf-8">
+</head>
+<body>
+    <h1>בדיקת URL Scheme של אוצריא - מעודכן</h1>
+    
+    <p>לחץ על הקישורים הבאים לבדיקת פתיחת האפליקציה:</p>
+    
+    <ul>
+        <li><a href="otzaria://book/ברכות">פתח ספר ברכות</a></li>
+        <li><a href="otzaria://book/ברכות?index=10">פתח ספר ברכות במקטע 10</a></li>
+        <li><a href="otzaria://book/ברכות?index=5&highlight=טקסט">פתח ספר ברכות עם הדגשת "טקסט"</a></li>
+        <li><a href="otzaria://book/שבת">פתח ספר שבת</a></li>
+        <li><a href="otzaria://book/שבת?index=15&highlight=שבת">פתח ספר שבת עם הדגשת "שבת"</a></li>
+    </ul>
+    
+    <p>אם ה-URL scheme עובד, הדפדפן יבקש אישור לפתיחת האפליקציה.</p>
+    
+    <h2>בדיקה ידנית:</h2>
+    <p>תוכל גם לנסות להריץ ישירות:</p>
+    <pre>
+build\windows\x64\runner\Debug\otzaria.exe "otzaria://book/ברכות?index=5&highlight=טקסט"
+    </pre>
+</body>
+</html>

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:otzaria/text_book/bloc/text_book_bloc.dart';
+import 'package:otzaria/text_book/bloc/text_book_event.dart';
 import 'package:otzaria/text_book/text_book_repository.dart';
 import 'package:otzaria/text_book/editing/repository/local_overrides_repository.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
@@ -24,6 +25,10 @@ class TextBookTab extends OpenedTab {
 
   /// The initial search text for this tab.
   final String searchText;
+  
+  /// Text to highlight when the tab is opened
+  final String highlightText;
+  
   final Map<String, Map<String, bool>> searchOptions;
   final Map<int, List<String>> alternativeWords;
   final Map<String, String> spacingValues;
@@ -57,6 +62,7 @@ class TextBookTab extends OpenedTab {
     required this.book,
     required this.index,
     this.searchText = '',
+    this.highlightText = '',
     this.searchOptions = const {},
     this.alternativeWords = const {},
     this.spacingValues = const {},
@@ -105,6 +111,12 @@ class TextBookTab extends OpenedTab {
       if (state is TextBookLoaded && state.visibleIndices.isNotEmpty) {
         index = state.visibleIndices.first;
         debugPrint('DEBUG: עדכון אינדקס ל-$index עבור ספר: ${book.title}');
+        
+        // אם יש טקסט להדגשה ועדיין לא הגדרנו אותו
+        if (highlightText.isNotEmpty && state.searchText != highlightText) {
+          debugPrint('DEBUG: הגדרת טקסט להדגשה: $highlightText');
+          bloc.add(UpdateSearchText(highlightText));
+        }
       }
     });
   }
@@ -144,6 +156,7 @@ class TextBookTab extends OpenedTab {
       splitedView: splitedView,
       showPageShapeView: json['showPageShapeView'] ?? false,
       openLeftPane: shouldOpenLeftPane,
+      highlightText: '', // לא שומרים highlight text ב-JSON
       isPinned: json['isPinned'] ?? false,
     );
   }
