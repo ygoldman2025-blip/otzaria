@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   irondash_engine_context
   isar_flutter_libs
+  printing
   screen_retriever_windows
   sqlite3_flutter_libs
   super_native_extensions

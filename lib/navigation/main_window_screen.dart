@@ -35,6 +35,7 @@ import 'package:window_manager/window_manager.dart';
 import 'package:otzaria/main.dart' show appWindowListener;
 import 'package:otzaria/utils/html_link_handler.dart';
 import 'package:otzaria/utils/url_handler_service.dart';
+import 'package:otzaria/tabs/models/text_tab.dart';
 
 class MainWindowScreen extends StatefulWidget {
   final String? initialUrl;
@@ -236,6 +237,9 @@ class MainWindowScreenState extends State<MainWindowScreen>
         url,
         (tab) {
           debugPrint('MainWindowScreen: Opening tab: ${tab.title}');
+          if (tab is TextBookTab) {
+            debugPrint('MainWindowScreen: TextBookTab - highlightText: "${tab.highlightText}", index: ${tab.index}');
+          }
           // Open the tab using the TabsBloc
           context.read<TabsBloc>().add(AddTab(tab));
           // Navigate to reading screen

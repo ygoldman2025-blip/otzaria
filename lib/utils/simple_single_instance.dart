@@ -139,6 +139,39 @@ class SimpleSingleInstance {
     }
   }
   
+  /// Wait for URL processing by first instance (handshake protocol)
+  /// Returns when the URL file is deleted by the first instance or timeout occurs
+  static Future<void> waitForUrlProcessing() async {
+    if (_urlFile == null) return;
+    
+    const int maxWaitTimeMs = 5000; // 5 seconds timeout
+    const int checkIntervalMs = 100; // Check every 100ms
+    int elapsedMs = 0;
+    
+    debugPrint('SimpleSingleInstance: Waiting for URL processing (handshake)');
+    
+    while (elapsedMs < maxWaitTimeMs) {
+      try {
+        // If file no longer exists, it was processed
+        if (!_urlFile!.existsSync()) {
+          debugPrint('SimpleSingleInstance: URL file deleted - processing complete');
+          return;
+        }
+        
+        // Wait before next check
+        await Future.delayed(const Duration(milliseconds: checkIntervalMs));
+        elapsedMs += checkIntervalMs;
+        
+      } catch (e) {
+        debugPrint('SimpleSingleInstance: Error during handshake wait: $e');
+        break;
+      }
+    }
+    
+    // Timeout occurred
+    debugPrint('SimpleSingleInstance: Handshake timeout after ${maxWaitTimeMs}ms');
+  }
+  
   /// Clean up lock file
   static Future<void> cleanup() async {
     try {

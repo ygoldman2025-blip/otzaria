@@ -96,22 +96,18 @@ class HtmlLinkHandler {
     Function(OpenedTab) openBookCallback,
   ) async {
     try {
-      debugPrint('HtmlLinkHandler: Processing sharing link: $url');
-      
       // Clean the URL first - handle encoding issues
       String cleanUrl = url.trim();
       
       // Handle potential double encoding
       if (cleanUrl.contains('%25')) {
         cleanUrl = Uri.decodeComponent(cleanUrl);
-        debugPrint('HtmlLinkHandler: Decoded double-encoded URL: $cleanUrl');
       }
       
       Uri uri;
       try {
         uri = Uri.parse(cleanUrl);
       } catch (e) {
-        debugPrint('HtmlLinkHandler: Failed to parse URL, trying with encoding fix: $e');
         // Try to fix encoding issues
         cleanUrl = cleanUrl.replaceAll(' ', '%20');
         uri = Uri.parse(cleanUrl);
@@ -119,10 +115,6 @@ class HtmlLinkHandler {
       
       final pathSegments = uri.pathSegments;
       final isPdf = cleanUrl.startsWith('otzaria://pdf/');
-      
-      debugPrint('HtmlLinkHandler: Path segments: $pathSegments');
-      debugPrint('HtmlLinkHandler: Query parameters: ${uri.queryParameters}');
-      debugPrint('HtmlLinkHandler: Is PDF: $isPdf');
       
       if (pathSegments.isEmpty) {
         throw Exception('קישור לא תקין - חסר שם ספר');
@@ -135,15 +127,12 @@ class HtmlLinkHandler {
       if (bookTitle.contains('%')) {
         try {
           bookTitle = Uri.decodeComponent(bookTitle);
-          debugPrint('HtmlLinkHandler: Decoded book title: $bookTitle');
         } catch (e) {
-          debugPrint('HtmlLinkHandler: Failed to decode book title: $e');
+          // Failed to decode, use as-is
         }
       }
       
       final queryParams = uri.queryParameters;
-      
-      debugPrint('HtmlLinkHandler: Looking for book: $bookTitle (PDF: $isPdf)');
       
       // מציאת הספר בספרייה
       final library = await DataRepository.instance.library;
@@ -154,13 +143,11 @@ class HtmlLinkHandler {
           : library.findBookByTitle(bookTitle, TextBook);
 
       if (foundBook == null) {
-        debugPrint('HtmlLinkHandler: Book not found: $bookTitle');
         throw Exception('לא נמצא ספר בשם: $bookTitle');
       }
 
       if (isPdf) {
         if (foundBook is! PdfBook) {
-          debugPrint('HtmlLinkHandler: Book is not PdfBook: ${foundBook.runtimeType}');
           throw Exception('הספר $bookTitle אינו ספר PDF');
         }
 
@@ -171,11 +158,8 @@ class HtmlLinkHandler {
           final parsedPage = int.tryParse(pageStr ?? '');
           if (parsedPage != null && parsedPage > 0) {
             startPage = parsedPage;
-            debugPrint('HtmlLinkHandler: Using page: $startPage');
           }
         }
-
-        debugPrint('HtmlLinkHandler: Creating PDF tab for book: $bookTitle at page: $startPage');
 
         // Create PDF tab
         final pdfTab = PdfBookTab(
@@ -185,8 +169,6 @@ class HtmlLinkHandler {
 
         // Call the callback with the PDF tab
         openBookCallback(pdfTab);
-
-        debugPrint('HtmlLinkHandler: Successfully created PDF tab');
         
         if (context.mounted) {
           UiSnack.show('נפתח ספר PDF: $bookTitle (עמוד $startPage)');
@@ -195,7 +177,6 @@ class HtmlLinkHandler {
       } else {
         // Handle text book (existing logic)
         if (foundBook is! TextBook) {
-          debugPrint('HtmlLinkHandler: Book is not TextBook: ${foundBook.runtimeType}');
           throw Exception('הספר $bookTitle אינו ספר טקסט');
         }
 
@@ -206,7 +187,6 @@ class HtmlLinkHandler {
           final parsedIndex = int.tryParse(indexStr ?? '');
           if (parsedIndex != null && parsedIndex >= 0) {
             startIndex = parsedIndex;
-            debugPrint('HtmlLinkHandler: Using index: $startIndex');
           }
         }
 
@@ -214,28 +194,36 @@ class HtmlLinkHandler {
 
         // קביעת הטקסט להדגשה
         String highlightText = '';
+        bool fullSectionHighlight = false;
+        
         if (queryParams.containsKey('text')) {
           final highlightParam = queryParams['text'];
-          if (highlightParam != null && highlightParam.isNotEmpty && highlightParam != 'true') {
+          
+          debugPrint('HtmlLinkHandler: Found text parameter: "$highlightParam"');
+          
+          if (highlightParam == 'true') {
+            // Full section highlighting
+            fullSectionHighlight = true;
+            debugPrint('HtmlLinkHandler: Full section highlighting enabled');
+          } else if (highlightParam != null && highlightParam.isNotEmpty) {
             try {
-              String decodedText = highlightParam;
+              // Decode URL encoding including %20 for spaces
+              highlightText = Uri.decodeComponent(highlightParam);
               
-              // Handle multiple encoding layers
-              if (decodedText.contains('%')) {
-                decodedText = Uri.decodeComponent(decodedText);
-                debugPrint('HtmlLinkHandler: First decode: $decodedText');
-                
-                // Check if still encoded
-                if (decodedText.contains('%')) {
-                  decodedText = Uri.decodeComponent(decodedText);
-                  debugPrint('HtmlLinkHandler: Second decode: $decodedText');
-                }
-              }
-              
-              highlightText = decodedText;
-              debugPrint('HtmlLinkHandler: Will highlight text: $highlightText');
+              // Additional cleanup for common encoding issues
+              highlightText = highlightText
+                  .replaceAll('%20', ' ')  // Handle any remaining %20
+                  .replaceAll('+', ' ')    // Handle + as space
+                  .trim();
+                  
+              debugPrint('HtmlLinkHandler: Decoded highlight text: "$highlightText"');
             } catch (e) {
               debugPrint('HtmlLinkHandler: Failed to decode highlight text: $e');
+              // If decoding fails, use the original parameter with basic cleanup
+              highlightText = highlightParam
+                  .replaceAll('%20', ' ')
+                  .replaceAll('+', ' ')
+                  .trim();
             }
           }
         }
@@ -245,6 +233,7 @@ class HtmlLinkHandler {
           book: foundBook,
           index: startIndex,
           highlightText: highlightText,
+          fullSectionHighlight: fullSectionHighlight,
           openLeftPane: (Settings.getValue<bool>('key-pin-sidebar') ?? false) ||
               (Settings.getValue<bool>('key-default-sidebar-open') ?? false),
         );
@@ -254,7 +243,11 @@ class HtmlLinkHandler {
         // הצגת הודעה למשתמש
         if (context.mounted) {
           String message;
-          if (highlightText.isNotEmpty) {
+          if (fullSectionHighlight) {
+            message = startIndex > 0 
+              ? 'נפתח ספר: $bookTitle (מקטע $startIndex) עם הדגשת כל המקטע'
+              : 'נפתח ספר: $bookTitle עם הדגשת כל המקטע';
+          } else if (highlightText.isNotEmpty) {
             message = startIndex > 0 
               ? 'נפתח ספר: $bookTitle (מקטע $startIndex) עם הדגשה: $highlightText'
               : 'נפתח ספר: $bookTitle עם הדגשה: $highlightText';
@@ -306,15 +299,19 @@ class HtmlLinkHandler {
     String url,
     Function(OpenedTab) openBookCallback,
   ) async {
+    debugPrint('HtmlLinkHandler: handleLink called with URL: $url');
+    
     try {
       // בדיקה אם זה קישור מבוסס תווים (inline-link)
       if (url.startsWith('otzaria://inline-link')) {
+        debugPrint('HtmlLinkHandler: Processing inline-link');
         await _handleInlineLink(context, url, openBookCallback);
         return true;
       }
 
       // בדיקה אם זה קישור שיתוף (otzaria://book/ או otzaria://pdf/)
       if (url.startsWith('otzaria://book/') || url.startsWith('otzaria://pdf/')) {
+        debugPrint('HtmlLinkHandler: Processing sharing link');
         await _handleSharingLink(context, url, openBookCallback);
         return true;
       }

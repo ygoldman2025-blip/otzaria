@@ -8,14 +8,11 @@ import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:otzaria/settings/settings_state.dart';
 import 'package:otzaria/text_book/bloc/text_book_bloc.dart';
 import 'package:otzaria/text_book/bloc/text_book_state.dart';
-import 'package:otzaria/text_book/models/commentator_group.dart';
 import 'package:otzaria/tabs/models/text_tab.dart';
 import 'package:otzaria/text_book/view/commentary_list_base.dart';
 import 'package:otzaria/widgets/progressive_scrolling.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
-import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/tabs/models/tab.dart';
-import 'package:otzaria/models/books.dart';
 import 'package:otzaria/utils/text_manipulation.dart' as utils;
 import 'package:otzaria/text_book/bloc/text_book_event.dart';
 import 'package:otzaria/personal_notes/personal_notes_system.dart';
@@ -66,15 +63,6 @@ class _CombinedViewState extends State<CombinedView> {
 
   bool _hasScrolledToInitialPosition = false;
 
-  /// פתיחת חלון הצד של המפרשים רק אם מוסיפים מפרשים ומפרשים מוגדרים בצד הטקסט (לא מתחת)
-  void _openCommentatorsPane({required bool isAdding}) {
-    if (isAdding &&
-        !widget.showCommentaryAsExpansionTiles &&
-        widget.onOpenCommentatorsPane != null) {
-      widget.onOpenCommentatorsPane!();
-    }
-  }
-
   late final FocusNode _focusNode;
 
   // שמירת גובה הבלוק בפועל לחישובים דינאמיים
@@ -99,7 +87,6 @@ class _CombinedViewState extends State<CombinedView> {
           state.visibleIndices.isNotEmpty) {
         _hasScrolledToInitialPosition = true;
         final initialIndex = state.visibleIndices.first;
-        debugPrint('DEBUG: גלילה אוטומטית למיקום שמור: $initialIndex');
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && widget.tab.scrollController.isAttached) {
             widget.tab.scrollController.scrollTo(
@@ -153,54 +140,6 @@ class _CombinedViewState extends State<CombinedView> {
   // מעקב אחר האינדקס הנוכחי שנבחר (לשימוש בהעתקה עם כותרות)
   int? _currentSelectedIndex;
 
-  /// helper קטן שמחזיר רשימת MenuEntry מקבוצה אחת, כולל כפתור הצג/הסתר הכל
-  List<ctx.MenuItem<void>> _buildGroup(
-    String groupName,
-    List<String>? group,
-    TextBookLoaded st,
-  ) {
-    if (group == null || group.isEmpty) return const [];
-
-    final bool groupActive =
-        group.every((title) => st.activeCommentators.contains(title));
-
-    return [
-      ctx.MenuItem<void>(
-        label: Text('הצג את כל $groupName'),
-        icon: groupActive ? const Icon(FluentIcons.checkmark_24_regular) : null,
-        onSelected: (_) {
-          final current = List<String>.from(st.activeCommentators);
-          final isAdding = !groupActive;
-          if (groupActive) {
-            current.removeWhere(group.contains);
-          } else {
-            for (final title in group) {
-              if (!current.contains(title)) current.add(title);
-            }
-          }
-          context.read<TextBookBloc>().add(UpdateCommentators(current));
-          _openCommentatorsPane(isAdding: isAdding);
-        },
-      ),
-      ...group.map((title) {
-        final bool isActive = st.activeCommentators.contains(title);
-        return ctx.MenuItem<void>(
-          label: Text(title),
-          icon: isActive ? const Icon(FluentIcons.checkmark_24_regular) : null,
-          onSelected: (_) {
-            final current = List<String>.from(st.activeCommentators);
-            final isAdding = !current.contains(title);
-            current.contains(title)
-                ? current.remove(title)
-                : current.add(title);
-            context.read<TextBookBloc>().add(UpdateCommentators(current));
-            _openCommentatorsPane(isAdding: isAdding);
-          },
-        );
-      }),
-    ];
-  }
-
   // בניית תפריט קונטקסט "מקובע" לאינדקס ספציפי של פסקה
   ctx.ContextMenu _buildContextMenuForIndex(
       TextBookLoaded state, int paragraphIndex, BuildContext menuContext) {
@@ -221,18 +160,6 @@ class _CombinedViewState extends State<CombinedView> {
 
     // 1. קבלת מידע על גודל המסך
     final screenHeight = MediaQuery.of(context).size.height;
-
-    // 2. זיהוי מפרשים שכבר שויכו לקבוצה
-    final groups = state.commentatorGroups;
-    final tanachGroup = CommentatorGroup.groupByTitle(groups, 'תורה שבכתב');
-    final chazalGroup = CommentatorGroup.groupByTitle(groups, 'חז"ל');
-    final rishonimGroup = CommentatorGroup.groupByTitle(groups, 'ראשונים');
-    final acharonimGroup = CommentatorGroup.groupByTitle(groups, 'אחרונים');
-    final modernGroup = CommentatorGroup.groupByTitle(groups, 'מחברי זמננו');
-    final ungroupedGroup = CommentatorGroup.groupByTitle(groups, 'שאר מפרשים');
-
-    // 3. יצירת רשימה של מפרשים שלא שויכו לאף קבוצה
-    final List<String> ungrouped = ungroupedGroup.commentators;
 
     return ctx.ContextMenu(
       maxHeight: screenHeight * 0.9,
@@ -301,12 +228,12 @@ class _CombinedViewState extends State<CombinedView> {
             ctx.MenuItem(
               label: const Text('העתק קישור ישיר למקטע זה'),
               icon: const Icon(FluentIcons.document_24_regular),
-              onSelected: (_) => _shareSectionLinkDirect(),
+              onSelected: (_) => _shareSectionLinkForIndex(paragraphIndex),
             ),
             ctx.MenuItem(
               label: const Text('העתק קישור ישיר למקטע זה עם הדגשת טקסט'),
               icon: const Icon(FluentIcons.highlight_24_regular),
-              onSelected: (_) => _shareTextHighlightLinkDirect(),
+              onSelected: (_) => _shareTextHighlightLinkForIndex(paragraphIndex),
             ),
           ],
         ),
@@ -649,11 +576,13 @@ $textWithBreaks
                   foundIndex ??= state.selectedIndex;
                 }
 
-                setState(() {
-                  _savedSelectedText = plain;
-                  _savedSelectedIndex = foundIndex;
-                  _currentSelectedIndex = foundIndex;
-                });
+                if (mounted) {
+                  setState(() {
+                    _savedSelectedText = plain;
+                    _savedSelectedIndex = foundIndex;
+                    _currentSelectedIndex = foundIndex;
+                  });
+                }
               },
               child: Directionality(
                 textDirection: widget.isPreviewMode
@@ -763,10 +692,12 @@ $textWithBreaks
             onTap: () {
               _focusNode.requestFocus();
               // מאפס את הטקסט השמור כשלוחצים על הפסקה
-              setState(() {
-                _savedSelectedText = null;
-                _currentSelectedIndex = null;
-              });
+              if (mounted) {
+                setState(() {
+                  _savedSelectedText = null;
+                  _currentSelectedIndex = null;
+                });
+              }
               // פשוט מעדכן את selectedIndex - זה יגרום לבנייה מחדש
               if (isSelected) {
                 _textBookBloc.add(const UpdateSelectedIndex(null));
@@ -802,9 +733,11 @@ $textWithBreaks
             },
             onSecondaryTapDown: (details) {
               // שומר את האינדקס הנוכחי לשימוש בתפריט ההקשר
-              setState(() {
-                _currentSelectedIndex = index;
-              });
+              if (mounted) {
+                setState(() {
+                  _currentSelectedIndex = index;
+                });
+              }
             },
             child: ctx.ContextMenuRegion(
               contextMenu: _buildContextMenuForIndex(state, index, context),
@@ -873,6 +806,18 @@ $textWithBreaks
                                 spacingValues: state.spacingValues,
                                 isFuzzy: state.searchMode == SearchMode.fuzzy,
                               );
+
+                        // בדיקה אם זה הדגשת כל המקטע
+                        if (state.fullSectionHighlight && 
+                            state.sectionSpecificHighlightIndex == index) {
+                          processedData = utils.highlightFullSection(processedData);
+                        }
+                        // הדגשת טקסט ספציפי למקטע (מקישורים)
+                        else if (state.sectionSpecificHighlight != null && 
+                            state.sectionSpecificHighlight!.isNotEmpty &&
+                            state.sectionSpecificHighlightIndex == index) {
+                          processedData = utils.exactHighlight(processedData, state.sectionSpecificHighlight!, fuzzyForLongText: true);
+                        }
 
                         processedData =
                             utils.formatTextWithParentheses(processedData);
@@ -947,7 +892,29 @@ $textWithBreaks
 
   @override
   Widget build(BuildContext context) {
-    return buildKeyboardListener();
+    return BlocListener<TextBookBloc, TextBookState>(
+      listener: (context, state) {
+        if (state is TextBookLoaded && 
+            state.sectionSpecificHighlightError != null && 
+            state.sectionSpecificHighlightError!.isNotEmpty &&
+            !state.errorMessageShown) {
+          // Show error message when text is not found in nearby sections
+          // Using showWithDuration without backgroundColor to get normal black text color
+          UiSnack.showWithDuration(
+            'הטקסט "${state.sectionSpecificHighlightError}" לא נמצא במקטע זה או במקטעים הסמוכים',
+            duration: const Duration(seconds: 10),
+          );
+          
+          // Mark error as shown to prevent repeated displays
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (mounted) {
+              context.read<TextBookBloc>().add(const MarkErrorMessageShown());
+            }
+          });
+        }
+      },
+      child: buildKeyboardListener(),
+    );
   }
 
   /// Opens the text editor for a specific paragraph
@@ -981,10 +948,16 @@ $textWithBreaks
     );
   }
 
-  /// שיתוף קישור למקטע באמצעות SharingUtils
-  Future<void> _shareSectionLinkDirect() async {
+  /// שיתוף קישור למקטע ספציפי (מתפריט הקשר)
+  Future<void> _shareSectionLinkForIndex(int index) async {
+    final state = context.read<TextBookBloc>().state;
+    if (state is! TextBookLoaded) return;
+    
+    // יצירת TextBookTab זמני עם האינדקס הספציפי
+    final tempTab = TextBookTab(book: state.book, index: index);
+    
     await SharingUtils.shareSectionLink(
-      widget.tab,
+      tempTab,
       (message) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1002,10 +975,16 @@ $textWithBreaks
     );
   }
 
-  /// שיתוף קישור עם הדגשת טקסט באמצעות SharingUtils
-  Future<void> _shareTextHighlightLinkDirect() async {
+  /// שיתוף קישור עם הדגשת טקסט למקטע ספציפי (מתפריט הקשר)
+  Future<void> _shareTextHighlightLinkForIndex(int index) async {
+    final state = context.read<TextBookBloc>().state;
+    if (state is! TextBookLoaded) return;
+    
+    // יצירת TextBookTab זמני עם האינדקס הספציפי
+    final tempTab = TextBookTab(book: state.book, index: index);
+    
     await SharingUtils.shareHighlightedTextLink(
-      widget.tab,
+      tempTab,
       (message) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

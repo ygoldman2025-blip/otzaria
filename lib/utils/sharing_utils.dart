@@ -2,9 +2,33 @@ import 'package:flutter/services.dart';
 import 'package:otzaria/tabs/models/tab.dart';
 import 'package:otzaria/tabs/models/text_tab.dart';
 import 'package:otzaria/tabs/models/pdf_tab.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+import 'package:otzaria/text_book/bloc/text_book_state.dart';
 
 /// Utility class for generating and handling sharing links
 class SharingUtils {
+  /// Helper function to determine the current section index reliably
+  /// This function prioritizes visible position over selectedIndex to avoid index=0 issues
+  static int getCurrentSectionIndex(
+    TextBookTab tab,
+    ItemPositionsListener positionsListener,
+    TextBookLoaded? state,
+  ) {
+    // First priority: visible position from scroll listener
+    final positions = positionsListener.itemPositions.value;
+    if (positions.isNotEmpty) {
+      final visibleIndex = positions.first.index;
+      return visibleIndex;
+    }
+    
+    // Second priority: selectedIndex from state (if not null)
+    if (state?.selectedIndex != null) {
+      return state!.selectedIndex!;
+    }
+    
+    // Third priority: tab.index (current tab index)
+    return tab.index;
+  }
   /// Generates a basic book link without specific location
   static String generateBookLink(OpenedTab tab) {
     if (tab is TextBookTab) {
@@ -33,13 +57,17 @@ class SharingUtils {
     String baseLink = generateSectionLink(tab);
     
     if (selectedText != null && selectedText.trim().isNotEmpty) {
-      final encodedText = Uri.encodeComponent(selectedText.trim());
+      final trimmedText = selectedText.trim();
+      final encodedText = Uri.encodeComponent(trimmedText);
       final separator = baseLink.contains('?') ? '&' : '?';
-      return '$baseLink${separator}text=$encodedText';
+      final finalLink = '$baseLink${separator}text=$encodedText';
+      
+      return finalLink;
     } else {
       // If no specific text, just add text flag
       final separator = baseLink.contains('?') ? '&' : '?';
-      return '$baseLink${separator}text=true';
+      final fallbackLink = '$baseLink${separator}text=true';
+      return fallbackLink;
     }
   }
 
@@ -96,6 +124,7 @@ class SharingUtils {
     {String? selectedText}
   ) async {
     final link = generateHighlightedTextLink(tab, selectedText: selectedText);
+    
     await copyLinkToClipboard(
       link,
       'קישור ישיר עם הדגשה ב"${tab.title}" הועתק ללוח',

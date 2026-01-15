@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:otzaria/text_book/bloc/text_book_bloc.dart';
 import 'package:otzaria/text_book/bloc/text_book_event.dart';
 import 'package:otzaria/text_book/text_book_repository.dart';
@@ -9,8 +10,8 @@ import 'package:otzaria/data/data_providers/file_system_data_provider.dart';
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/tabs/models/tab.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
-import 'package:flutter/foundation.dart';
 import 'package:otzaria/search/models/search_configuration.dart';
+import 'package:otzaria/utils/text_manipulation.dart' as utils;
 
 /// Represents a tab that contains a text book.
 ///
@@ -28,6 +29,12 @@ class TextBookTab extends OpenedTab {
   
   /// Text to highlight when the tab is opened
   final String highlightText;
+  
+  /// Whether to highlight the full section (for text=true parameter)
+  final bool fullSectionHighlight;
+  
+  /// The original index where highlighting should occur (for section-specific highlighting)
+  final int? highlightIndex;
   
   final Map<String, Map<String, bool>> searchOptions;
   final Map<int, List<String>> alternativeWords;
@@ -63,6 +70,7 @@ class TextBookTab extends OpenedTab {
     required this.index,
     this.searchText = '',
     this.highlightText = '',
+    this.fullSectionHighlight = false,
     this.searchOptions = const {},
     this.alternativeWords = const {},
     this.spacingValues = const {},
@@ -72,8 +80,8 @@ class TextBookTab extends OpenedTab {
     bool? splitedView,
     bool? showPageShapeView,
     bool isPinned = false,
-  }) : super(book.title, isPinned: isPinned) {
-    debugPrint('DEBUG: TextBookTab נוצר עם אינדקס: $index לספר: ${book.title}');
+  }) : highlightIndex = highlightText.isNotEmpty || fullSectionHighlight ? index : null,
+       super(book.title, isPinned: isPinned) {
 
     // קביעת ברירת המחדל של splitedView מההגדרות אם לא סופק
     final bool effectiveSplitedView =
@@ -94,7 +102,7 @@ class TextBookTab extends OpenedTab {
         index,
         openLeftPane,
         commentators ?? [],
-        searchText: searchText,
+        searchText: searchText, // לא להעביר את highlightText כ-searchText!
         searchOptions: searchOptions,
         alternativeWords: alternativeWords,
         spacingValues: spacingValues,
@@ -106,29 +114,97 @@ class TextBookTab extends OpenedTab {
       positionsListener: positionsListener,
     );
 
-    // הוספת listener לעדכון האינדקס כשה-state משתנה
-    _stateSubscription = bloc.stream.listen((state) {
-      if (state is TextBookLoaded && state.visibleIndices.isNotEmpty) {
-        index = state.visibleIndices.first;
-        debugPrint('DEBUG: עדכון אינדקס ל-$index עבור ספר: ${book.title}');
+    // Start loading content
+    bloc.add(LoadContent(
+      fontSize: 25.0,
+      showSplitView: effectiveSplitedView,
+      removeNikud: false,
+      loadCommentators: true,
+    ));
+
+    // Set up section-specific highlighting if needed
+    if (highlightText.isNotEmpty || fullSectionHighlight) {
+      if (fullSectionHighlight) {
+        // Full section highlighting - no need to decode text
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          bloc.add(UpdateSectionSpecificHighlight('', index, fullSection: true));
+        });
         
-        // אם יש טקסט להדגשה ועדיין לא הגדרנו אותו
-        // והאינדקס הנוכחי תואם לאינדקס המבוקש (הדגשה רק במקטע הספציפי)
-        if (highlightText.isNotEmpty && state.searchText != highlightText) {
-          // בדיקה אם אנחנו במקטע הנכון להדגשה
-          final targetIndex = this.index; // האינדקס שהוגדר בקישור
-          final currentIndex = state.visibleIndices.first; // האינדקס הנוכחי הנראה
-          
-          // מדגישים רק אם אנחנו במקטע הנכון (או קרובים אליו)
-          if ((currentIndex - targetIndex).abs() <= 2) { // טווח של 2 מקטעים
-            debugPrint('DEBUG: הגדרת טקסט להדגשה במקטע $currentIndex: $highlightText');
-            bloc.add(UpdateSearchText(highlightText));
-          } else {
-            debugPrint('DEBUG: לא מדגיש טקסט - לא במקטע הנכון (נוכחי: $currentIndex, מבוקש: $targetIndex)');
+        // Also listen for when the bloc is loaded to ensure the event is processed
+        bool eventSent = false;
+        _stateSubscription = bloc.stream.listen((state) {
+          if (state is TextBookLoaded && !eventSent) {
+            // Send the event again to make sure it's processed after content is loaded
+            // Add a small delay to ensure the UI is ready
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (!eventSent) {
+                bloc.add(UpdateSectionSpecificHighlight('', index, fullSection: true));
+                eventSent = true;
+              }
+            });
+            
+            // Cancel the subscription after sending the event once
+            _stateSubscription?.cancel();
+            _stateSubscription = null;
           }
+        });
+      } else {
+        // Regular text highlighting
+        // Decode URL encoding including %20 for spaces before processing
+        String decodedHighlightText = highlightText;
+        try {
+          decodedHighlightText = Uri.decodeComponent(highlightText);
+        } catch (e) {
+          // If decoding fails, try basic replacements
+          decodedHighlightText = highlightText
+              .replaceAll('%20', ' ')
+              .replaceAll('+', ' ');
         }
+        
+        // Additional cleanup
+        decodedHighlightText = decodedHighlightText.trim();
+        
+        // Send the event immediately after bloc initialization
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          bloc.add(UpdateSectionSpecificHighlight(decodedHighlightText, index));
+        });
+        
+        // Also listen for when the bloc is loaded to ensure the event is processed
+        bool eventSent = false;
+        _stateSubscription = bloc.stream.listen((state) {
+          if (state is TextBookLoaded && decodedHighlightText.isNotEmpty && !eventSent) {
+            // First, try to highlight in the original index without searching elsewhere
+            bloc.add(UpdateSectionSpecificHighlight(decodedHighlightText, index));
+            
+            // Also try to find the text in nearby sections as backup
+            final correctIndex = utils.findTextInNearbyContent(state.content, decodedHighlightText, index);
+            
+            if (correctIndex != null && correctIndex != index) {
+              // Text found in nearby section - update both index and highlight
+              this.index = correctIndex; // Update the tab's index
+              bloc.add(UpdateSectionSpecificHighlight(decodedHighlightText, correctIndex));
+              
+              // Scroll to the correct section
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (scrollController.isAttached) {
+                  scrollController.scrollTo(
+                    index: correctIndex,
+                    duration: const Duration(milliseconds: 300),
+                  );
+                }
+              });
+            }
+            // Note: We removed the error case - let the highlighting attempt work even if not found in nearby sections
+            
+            eventSent = true;
+            
+            // Cancel the subscription after sending the event once
+            _stateSubscription?.cancel();
+            _stateSubscription = null;
+          }
+        });
       }
-    });
+    }
   }
 
   /// Cleanup when the tab is disposed
@@ -153,9 +229,6 @@ class TextBookTab extends OpenedTab {
     // שחזור מצב התצוגה המפוצלת מה-JSON
     final bool splitedView = json['splitedView'] ??
         (Settings.getValue<bool>('key-splited-view') ?? false);
-
-    debugPrint(
-        'DEBUG: טעינת טאב ${json['title']} עם splitedView: $splitedView (מ-JSON: ${json['splitedView']})');
 
     return TextBookTab(
       index: json['initalIndex'],
@@ -192,15 +265,7 @@ class TextBookTab extends OpenedTab {
         currentIndex = loadedState.visibleIndices.first;
         // עדכון גם את ה-index של הטאב עצמו כדי שישמר
         index = currentIndex;
-        debugPrint(
-            'DEBUG: שמירת טאב ${book.title} עם אינדקס: $currentIndex, splitedView: $splitedView (מתוך visibleIndices)');
-      } else {
-        debugPrint(
-            'DEBUG: שמירת טאב ${book.title} עם אינדקס: $currentIndex, splitedView: $splitedView (ברירת מחדל)');
       }
-    } else {
-      debugPrint(
-          'DEBUG: שמירת טאב ${book.title} עם אינדקס: $currentIndex, splitedView: $splitedView (state לא loaded)');
     }
 
     return {

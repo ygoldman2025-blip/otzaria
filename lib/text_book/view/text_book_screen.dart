@@ -18,6 +18,8 @@ import 'package:otzaria/tabs/models/text_tab.dart';
 import 'package:otzaria/tabs/bloc/tabs_bloc.dart';
 import 'package:otzaria/tabs/bloc/tabs_state.dart';
 import 'package:otzaria/utils/sharing_utils.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:otzaria/text_book/bloc/text_book_bloc.dart';
 import 'package:otzaria/text_book/bloc/text_book_event.dart';
 import 'package:otzaria/text_book/bloc/text_book_state.dart';
@@ -498,12 +500,6 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
         return;
       }
 
-      // Temporarily disabled due to PDF plugin issues
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('הדפסה זמנית מושבתת')),
-      );
-      return;
-      /*
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => PrintingScreen(
@@ -533,7 +529,6 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
         ),
       );
       return;
-      */
     }
 
     Navigator.of(context).push(

@@ -29,7 +29,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'pdf_outlines_screen.dart';
 import 'package:otzaria/widgets/password_dialog.dart';
 import 'pdf_thumbnails_screen.dart';
-// import 'package:printing/printing.dart'; // Temporarily disabled
+import 'package:printing/printing.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/utils/page_converter.dart';
 import 'package:flutter/gestures.dart';
@@ -147,8 +147,6 @@ class _PdfBookScreenState extends State<PdfBookScreen>
     widget.tab.pdfViewerController = pdfController;
 
     // textSearcher ייוצר ב-onDocumentChanged כשה-document מוכן
-
-    debugPrint('DEBUG: אתחול PDF טאב - דף התחלתי: ${widget.tab.pageNumber}');
 
     _sidebarWidth = ValueNotifier<double>(
         Settings.getValue<double>('key-sidebar-width', defaultValue: 300)!);
@@ -1471,7 +1469,6 @@ class _PdfBookScreenState extends State<PdfBookScreen>
         'DEBUG Bookmark: outline is ${outline == null ? "null" : "not null"}, isEmpty: ${outline?.isEmpty}, page: $index');
     if (outline != null && outline.isNotEmpty) {
       final heading = _findHeadingForPage(outline, index);
-      debugPrint('DEBUG Bookmark: heading found: $heading');
       if (heading != null) {
         ref = '${widget.tab.title} $heading'; // שם הספר + הכותרת
       } else {
@@ -1517,7 +1514,6 @@ class _PdfBookScreenState extends State<PdfBookScreen>
     }
 
     searchNodes(outline);
-    debugPrint('DEBUG: final bestMatch: ${bestMatch?.title}');
     return bestMatch?.title;
   }
 
@@ -1630,17 +1626,11 @@ class _PdfBookScreenState extends State<PdfBookScreen>
 
   /// טיפול בלחיצה על כפתור ההדפסה
   Future<void> _handlePrintPress(BuildContext context) async {
-    // Temporarily disabled due to printing plugin issues
-    /*
     final file = File(widget.tab.book.path);
     final fileName = file.uri.pathSegments.last;
     await Printing.sharePdf(
       bytes: await file.readAsBytes(),
       filename: fileName,
-    );
-    */
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('הדפסה זמנית מושבתת')),
     );
   }
 

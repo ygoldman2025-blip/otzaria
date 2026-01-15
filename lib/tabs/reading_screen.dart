@@ -264,7 +264,6 @@ class _ReadingScreenState extends State<ReadingScreen>
                     context.read<TabsBloc>().add(const SaveTabs());
                   }
                   if (controller.index != state.currentTabIndex) {
-                    debugPrint('DEBUG: עדכון טאב נוכחי ל-${controller.index}');
                     context
                         .read<TabsBloc>()
                         .add(SetCurrentTab(controller.index));
@@ -570,22 +569,9 @@ class _ReadingScreenState extends State<ReadingScreen>
               ),
             ],
             const MenuDivider(),
-            MenuItem.submenu(
-              label: const Text('שתף קישור ישיר'),
-              items: [
-                MenuItem(
-                  label: const Text('העתק קישור ישיר לספר זה'),
-                  onSelected: (_) => _shareBookLink(tab),
-                ),
-                MenuItem(
-                  label: const Text('העתק קישור ישיר למקטע זה'),
-                  onSelected: (_) => _shareSectionLink(tab),
-                ),
-                MenuItem(
-                  label: const Text('העתק קישור ישיר למקטע זה עם הדגשת טקסט'),
-                  onSelected: (_) => _shareTextHighlightLink(tab),
-                ),
-              ],
+            MenuItem(
+              label: const Text('העתק קישור לספר זה'),
+              onSelected: (_) => _shareBookLink(tab),
             ),
             const MenuDivider(),
             // הוסרת אפשרות הצמדה לדף הבית לאחר הסרת דף הבית
@@ -816,8 +802,6 @@ class _ReadingScreenState extends State<ReadingScreen>
   }
 
   void pinTabToHomePage(OpenedTab tab, BuildContext context) {
-    debugPrint('Pinning tab: ${tab.title}'); // debug
-
     // קבל את הרשימה הנוכחית של הספרים הנעוצים
     final currentBooksString =
         Settings.getValue<String>('key-pinned-books') ?? '';
@@ -862,8 +846,6 @@ class _ReadingScreenState extends State<ReadingScreen>
     final booksString = jsonEncode(updatedBooks);
     Settings.setValue<String>('key-pinned-books', booksString);
 
-    debugPrint('Saved pinned books: $booksString'); // debug
-
     UiSnack.show('הצמדת "${tab.title}" לדף הבית');
   }
 
@@ -898,68 +880,8 @@ class _ReadingScreenState extends State<ReadingScreen>
     );
   }
 
-  Future<void> _shareCurrentTab(OpenedTab tab) async {
-    await SharingUtils.shareBookLink(
-      tab,
-      (message) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
-          );
-        }
-      },
-      (error) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error), duration: const Duration(seconds: 2)),
-          );
-        }
-      },
-    );
-  }
-
   Future<void> _shareBookLink(OpenedTab tab) async {
     await SharingUtils.shareBookLink(
-      tab,
-      (message) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
-          );
-        }
-      },
-      (error) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error), duration: const Duration(seconds: 2)),
-          );
-        }
-      },
-    );
-  }
-
-  Future<void> _shareSectionLink(OpenedTab tab) async {
-    await SharingUtils.shareSectionLink(
-      tab,
-      (message) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
-          );
-        }
-      },
-      (error) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error), duration: const Duration(seconds: 2)),
-          );
-        }
-      },
-    );
-  }
-
-  Future<void> _shareTextHighlightLink(OpenedTab tab) async {
-    await SharingUtils.shareHighlightedTextLink(
       tab,
       (message) {
         if (mounted) {

@@ -133,11 +133,14 @@ void main(List<String> args) async {
         debugPrint('This is not the first instance');
         // If not the first instance and we have a URL, write it to a file for the running instance
         if (initialUrl != null) {
-          debugPrint('Second instance with URL: $initialUrl - writing to file and exiting');
+          debugPrint('Second instance with URL: $initialUrl - writing to file and waiting for processing');
           await SimpleSingleInstance.writeUrlForRunningInstance(initialUrl);
-          // Wait to ensure the file is written and read by the first instance
-          await Future.delayed(const Duration(milliseconds: 1000));
-          debugPrint('Second instance: URL written, exiting now');
+          
+          // Wait for the first instance to process the URL (indicated by file deletion)
+          // Use handshake protocol instead of fixed delay
+          await SimpleSingleInstance.waitForUrlProcessing();
+          
+          debugPrint('Second instance: URL processed by first instance, exiting now');
         } else {
           debugPrint('Second instance without URL - exiting');
         }
