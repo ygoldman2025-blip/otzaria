@@ -136,7 +136,7 @@ class TextBookTab extends OpenedTab {
           if (state is TextBookLoaded && !eventSent) {
             // Send the event again to make sure it's processed after content is loaded
             // Add a small delay to ensure the UI is ready
-            Future.delayed(const Duration(milliseconds: 500), () {
+            Future.delayed(const Duration(milliseconds: 100), () {
               if (!eventSent) {
                 bloc.add(UpdateSectionSpecificHighlight('', index, fullSection: true));
                 eventSent = true;
@@ -181,7 +181,7 @@ class TextBookTab extends OpenedTab {
             
             if (correctIndex != null && correctIndex != index) {
               // Text found in nearby section - update both index and highlight
-              this.index = correctIndex; // Update the tab's index
+              index = correctIndex; // Update the tab's index
               bloc.add(UpdateSectionSpecificHighlight(decodedHighlightText, correctIndex));
               
               // Scroll to the correct section

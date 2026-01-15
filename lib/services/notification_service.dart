@@ -37,10 +37,18 @@ class NotificationService {
       const LinuxInitializationSettings initializationSettingsLinux =
           LinuxInitializationSettings(defaultActionName: 'Open notification');
 
+      const DarwinInitializationSettings initializationSettingsMacOS =
+          DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      );
+
       const InitializationSettings initializationSettings =
           InitializationSettings(
         android: initializationSettingsAndroid,
         iOS: initializationSettingsIOS,
+        macOS: initializationSettingsMacOS,
         linux: initializationSettingsLinux,
       );
 
@@ -57,7 +65,7 @@ class NotificationService {
       _permissionsGranted = await checkPermissions();
     } catch (e) {
       if (kDebugMode) {
-        print('Failed to initialize notifications: $e');
+        debugPrint('Failed to initialize notifications: $e');
       }
       _isInitialized = false;
       _permissionsGranted = false;
@@ -81,11 +89,11 @@ class NotificationService {
           try {
             final bool? exactAlarmGranted = await androidImplementation?.requestExactAlarmsPermission();
             if (kDebugMode) {
-              print('Exact alarm permission granted: $exactAlarmGranted');
+              debugPrint('Exact alarm permission granted: $exactAlarmGranted');
             }
           } catch (e) {
             if (kDebugMode) {
-              print('Failed to request exact alarm permission: $e');
+              debugPrint('Failed to request exact alarm permission: $e');
             }
             // Continue without exact alarm permission - notifications will still work but may be less precise
           }
@@ -105,7 +113,7 @@ class NotificationService {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Failed to request permissions: $e');
+        debugPrint('Failed to request permissions: $e');
       }
       _permissionsGranted = false;
     }
@@ -143,7 +151,7 @@ class NotificationService {
       );
     } catch (e) {
       if (kDebugMode) {
-        print('Failed to show notification: $e');
+        debugPrint('Failed to show notification: $e');
       }
     }
   }
@@ -198,7 +206,7 @@ class NotificationService {
       );
     } catch (e) {
       if (kDebugMode) {
-        print('Failed to schedule notification: $e');
+        debugPrint('Failed to schedule notification: $e');
       }
     }
   }
@@ -210,7 +218,7 @@ class NotificationService {
       await flutterLocalNotificationsPlugin.cancel(id);
     } catch (e) {
       if (kDebugMode) {
-        print('Failed to cancel notification: $e');
+        debugPrint('Failed to cancel notification: $e');
       }
     }
   }
@@ -222,7 +230,7 @@ class NotificationService {
       await flutterLocalNotificationsPlugin.cancelAll();
     } catch (e) {
       if (kDebugMode) {
-        print('Failed to cancel all notifications: $e');
+        debugPrint('Failed to cancel all notifications: $e');
       }
     }
   }
@@ -250,7 +258,7 @@ class NotificationService {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Failed to check permissions: $e');
+        debugPrint('Failed to check permissions: $e');
       }
       return false;
     }

@@ -215,12 +215,10 @@ class MainWindowScreenState extends State<MainWindowScreen>
       debugPrint('MainWindowScreen: Waiting for library to load...');
       late StreamSubscription subscription;
       subscription = libraryBloc.stream.listen((state) async {
-        if (state.library != null && !state.isLoading) {
+        if (mounted && state.library != null && !state.isLoading) {
           debugPrint('MainWindowScreen: Library loaded, handling URL now');
           subscription.cancel();
-          if (mounted) {
-            await _processUrl(url);
-          }
+          await _processUrl(url);
         }
       });
     });

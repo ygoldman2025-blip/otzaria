@@ -109,16 +109,26 @@ void main(List<String> args) async {
   // Handle URL scheme arguments first
   String? initialUrl;
   debugPrint('Command line arguments: $args');
-  for (String arg in args) {
-    debugPrint('Processing argument: $arg');
-    if (arg.startsWith('--url=')) {
-      initialUrl = arg.substring(6); // Remove '--url=' prefix
-      debugPrint('Found URL argument: $initialUrl');
-      break;
-    } else if (arg.startsWith('otzaria://')) {
-      initialUrl = arg;
+  
+  // Find URL argument using firstWhere
+  final urlArg = args.cast<String?>().firstWhere(
+    (arg) => arg != null && arg.startsWith('--url='),
+    orElse: () => null,
+  );
+  
+  if (urlArg != null) {
+    initialUrl = urlArg.substring(6); // Remove '--url=' prefix
+    debugPrint('Found URL argument: $initialUrl');
+  } else {
+    // Try to find direct otzaria:// URL
+    final directUrlArg = args.cast<String?>().firstWhere(
+      (arg) => arg != null && arg.startsWith('otzaria://'),
+      orElse: () => null,
+    );
+    
+    if (directUrlArg != null) {
+      initialUrl = directUrlArg;
       debugPrint('Found direct URL argument: $initialUrl');
-      break;
     }
   }
 
