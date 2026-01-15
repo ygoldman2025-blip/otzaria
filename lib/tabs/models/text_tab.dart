@@ -181,6 +181,8 @@ class TextBookTab extends OpenedTab {
             
             if (correctIndex != null && correctIndex != index) {
               // Text found in nearby section - update both index and highlight
+              // TODO: Consider refactoring to update tab through TabsBloc instead of direct mutation
+              // This would maintain unidirectional data flow and make state management clearer
               index = correctIndex; // Update the tab's index
               bloc.add(UpdateSectionSpecificHighlight(decodedHighlightText, correctIndex));
               

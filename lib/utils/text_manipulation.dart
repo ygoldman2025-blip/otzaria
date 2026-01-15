@@ -861,7 +861,9 @@ String exactHighlight(String text, String searchTerm, {bool fuzzyForLongText = f
 /// פונקציה להדגשה מטושטשת (fuzzy) למשפטים ארוכים
 /// מאפשרת הבדלים קלים בעיצוב ושורות חדשות
 String fuzzyHighlight(String text, String searchTerm) {
-  debugPrint('fuzzyHighlight called with searchTerm: "$searchTerm"');
+  if (kDebugMode) {
+    debugPrint('fuzzyHighlight called with searchTerm: "$searchTerm"');
+  }
   
   if (searchTerm.isEmpty || text.isEmpty) {
     return text;
@@ -905,32 +907,42 @@ String fuzzyHighlight(String text, String searchTerm) {
 
   // אם מצאנו התאמה טובה, נדגיש אותה
   if (bestMatch.isNotEmpty) {
-    debugPrint('fuzzyHighlight: Found best match: "$bestMatch"');
+    if (kDebugMode) {
+      debugPrint('fuzzyHighlight: Found best match: "$bestMatch"');
+    }
     return _highlightBestMatch(text, bestMatch);
   }
 
   // אם לא מצאנו התאמה טובה, ננסה חיפוש פשוט יותר
   // נחפש את כל המונח כמו שהוא (עם רווחים)
   if (normalizedText.contains(normalizedSearchTerm)) {
-    debugPrint('fuzzyHighlight: Found simple match');
+    if (kDebugMode) {
+      debugPrint('fuzzyHighlight: Found simple match');
+    }
     return _highlightBestMatch(text, normalizedSearchTerm);
   }
 
   // אם לא מצאנו התאמה מלאה, נדגיש את המילה הראשונה שנמצאה
   for (final word in searchWords) {
     if (normalizedText.contains(word)) {
-      debugPrint('fuzzyHighlight: Found word match: "$word"');
+      if (kDebugMode) {
+        debugPrint('fuzzyHighlight: Found word match: "$word"');
+      }
       return _highlightBestMatch(text, word);
     }
   }
 
-  debugPrint('fuzzyHighlight: No match found');
+  if (kDebugMode) {
+    debugPrint('fuzzyHighlight: No match found');
+  }
   return text;
 }
 
 /// פונקציה להדגשת טקסט ללא הגבלות - מיועדת לטקסט ארוך ומשפטים שלמים
 String unlimitedHighlight(String text, String searchTerm) {
-  debugPrint('unlimitedHighlight called with searchTerm: "$searchTerm"');
+  if (kDebugMode) {
+    debugPrint('unlimitedHighlight called with searchTerm: "$searchTerm"');
+  }
   
   if (searchTerm.isEmpty || text.isEmpty) {
     return text;
@@ -952,7 +964,9 @@ String unlimitedHighlight(String text, String searchTerm) {
 
   // חיפוש ישיר של המונח המלא
   if (normalizedText.contains(normalizedSearchTerm)) {
-    debugPrint('unlimitedHighlight: Found exact match');
+    if (kDebugMode) {
+      debugPrint('unlimitedHighlight: Found exact match');
+    }
     return _highlightBestMatch(text, normalizedSearchTerm);
   }
 
@@ -984,33 +998,43 @@ String unlimitedHighlight(String text, String searchTerm) {
       if (score > bestScore && score >= 0.1) {
         bestScore = score;
         bestMatch = sequence;
-        debugPrint('unlimitedHighlight: Found better match with score $score: "$bestMatch"');
+        if (kDebugMode) {
+          debugPrint('unlimitedHighlight: Found better match with score $score: "$bestMatch"');
+        }
       }
     }
   }
 
   // אם מצאנו התאמה טובה, נדגיש אותה
   if (bestMatch.isNotEmpty) {
-    debugPrint('unlimitedHighlight: Using best match: "$bestMatch"');
+    if (kDebugMode) {
+      debugPrint('unlimitedHighlight: Using best match: "$bestMatch"');
+    }
     return _highlightBestMatch(text, bestMatch);
   }
 
   // חיפוש חלקי - ננסה למצוא חלק מהמונח
   final longestWord = searchWords.reduce((a, b) => a.length > b.length ? a : b);
   if (normalizedText.contains(longestWord)) {
-    debugPrint('unlimitedHighlight: Using longest word: "$longestWord"');
+    if (kDebugMode) {
+      debugPrint('unlimitedHighlight: Using longest word: "$longestWord"');
+    }
     return _highlightBestMatch(text, longestWord);
   }
 
   // כפתרון אחרון, נדגיש את המילה הראשונה שנמצאה
   for (final word in searchWords) {
     if (normalizedText.contains(word)) {
-      debugPrint('unlimitedHighlight: Using first found word: "$word"');
+      if (kDebugMode) {
+        debugPrint('unlimitedHighlight: Using first found word: "$word"');
+      }
       return _highlightBestMatch(text, word);
     }
   }
 
-  debugPrint('unlimitedHighlight: No match found');
+  if (kDebugMode) {
+    debugPrint('unlimitedHighlight: No match found');
+  }
   return text;
 }
 

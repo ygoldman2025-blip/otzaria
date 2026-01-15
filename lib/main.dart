@@ -110,25 +110,16 @@ void main(List<String> args) async {
   String? initialUrl;
   debugPrint('Command line arguments: $args');
   
-  // Find URL argument using firstWhere
-  final urlArg = args.cast<String?>().firstWhere(
-    (arg) => arg != null && arg.startsWith('--url='),
-    orElse: () => null,
-  );
-  
-  if (urlArg != null) {
-    initialUrl = urlArg.substring(6); // Remove '--url=' prefix
-    debugPrint('Found URL argument: $initialUrl');
-  } else {
-    // Try to find direct otzaria:// URL
-    final directUrlArg = args.cast<String?>().firstWhere(
-      (arg) => arg != null && arg.startsWith('otzaria://'),
-      orElse: () => null,
-    );
-    
-    if (directUrlArg != null) {
-      initialUrl = directUrlArg;
+  // Find URL argument - check both --url= prefix and direct otzaria:// URL
+  for (final arg in args) {
+    if (arg.startsWith('--url=')) {
+      initialUrl = arg.substring(6); // Remove '--url=' prefix
+      debugPrint('Found URL argument: $initialUrl');
+      break;
+    } else if (arg.startsWith('otzaria://')) {
+      initialUrl = arg;
       debugPrint('Found direct URL argument: $initialUrl');
+      break;
     }
   }
 
