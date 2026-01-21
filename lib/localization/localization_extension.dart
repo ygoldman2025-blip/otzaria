@@ -1,28 +1,35 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/localization/app_strings.dart';
-import 'package:otzaria/localization/localization_provider.dart';
+import 'package:otzaria/settings/settings_state.dart';
+import 'package:otzaria/settings/settings_bloc.dart';
 
 /// Extension for easy access to localization in BuildContext
 extension LocalizationExt on BuildContext {
-  /// Get the current LocalizationProvider
-  LocalizationProvider get loc =>
-      Provider.of<LocalizationProvider>(this, listen: false);
+  /// Get the current language from SettingsBloc
+  String get _currentLanguage {
+    try {
+      final settings = read<SettingsBloc>().state;
+      return settings.language;
+    } catch (_) {
+      return 'he'; // Default to Hebrew if bloc not available
+    }
+  }
 
   /// Get current locale
-  String get currentLocale => loc.currentLocale;
+  String get currentLocale => _currentLanguage;
 
   /// Check if Hebrew
-  bool get isHebrew => loc.isHebrew;
+  bool get isHebrew => _currentLanguage == 'he';
 
   /// Check if English
-  bool get isEnglish => loc.isEnglish;
+  bool get isEnglish => _currentLanguage == 'en';
 
   /// Get text direction
-  TextDirection get textDirection => loc.textDirection;
+  TextDirection get textDirection => isHebrew ? TextDirection.rtl : TextDirection.ltr;
 
   /// Get translated string
-  String tr(String key) => _translate(key, loc.currentLocale);
+  String tr(String key) => _translate(key, _currentLanguage);
 
   /// Get translated string with formatting (supports %s, %d, etc.)
   String trFormat(String key, List<dynamic> args) {
