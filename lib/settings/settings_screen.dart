@@ -350,17 +350,39 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                         ),
                         BlocBuilder<SettingsBloc, SettingsState>(
                           builder: (context, state) {
-                            return DropDownSettingsTile(
+                            return SimpleSettingsTile(
                               title: 'שפה',
-                              settingKey: 'key-language',
-                              selected: state.language,
-                              items: const {'he': 'עברית', 'en': 'English'},
-                              onChange: (value) {
-                                context
-                                    .read<SettingsBloc>()
-                                    .add(UpdateLanguage(value));
-                              },
+                              subtitle: state.language == 'en' ? 'English' : 'עברית',
                               leading: const Icon(FluentIcons.globe_24_regular),
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('בחר שפה'),
+                                    content: SingleChildScrollView(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          ListTile(
+                                            title: const Text('עברית'),
+                                            onTap: () {
+                                              context.read<SettingsBloc>().add(UpdateLanguage('he'));
+                                              Navigator.pop(context);
+                                            },
+                                          ),
+                                          ListTile(
+                                            title: const Text('English'),
+                                            onTap: () {
+                                              context.read<SettingsBloc>().add(UpdateLanguage('en'));
+                                              Navigator.pop(context);
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
                             );
                           },
                         ),
@@ -1389,7 +1411,7 @@ class _BackupSettingsSectionState extends State<_BackupSettingsSection> {
                     },
                   ),
                 ),
-                segments: const [
+                segments: [
                   ButtonSegment<String>(
                     value: 'none',
                     label: Text(context.tr('none')),

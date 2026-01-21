@@ -445,7 +445,6 @@ class AppStrings {
     'eventTitle': 'כותרת האירוע',
     'pleaseEnterEventTitle': 'יש למלא כותרת לאירוע',
     'noDataError': 'לא ניתן לטעון את נתוני הדיווח',
-    'close_': 'סגור',
     'startRecording': 'התחל הקלטה',
     'pressKeys': 'לחץ על המקשים...',
     'addLink': 'הוסף קישור',
@@ -703,7 +702,6 @@ class AppStrings {
     'dirNotFound': 'Directory otzaria-site not found',
     'fileNotFound': 'File %s not found',
     'changelogTitle': 'Changelog',
-    'close_': 'Close',
     'libraryVersion': 'Library version',
     'softwareVersion': 'Software version',
     'numberOfBooks': 'Number of books',
@@ -713,4 +711,10 @@ class AppStrings {
     'changelog': 'Changelog',
     'aboutSoftware': 'About the software',
   };
+
+  /// Get Hebrew translation
+  static String getHebrew(String key) => _hebrewStrings[key] ?? key;
+
+  /// Get English translation
+  static String getEnglish(String key) => _englishStrings[key] ?? key;
 }

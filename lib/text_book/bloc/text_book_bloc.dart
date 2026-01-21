@@ -120,32 +120,30 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
 
     try {
       // Load all data in parallel for performance
-      final loadResult = await ParallelBookLoader.loadBook(
-        book,
-        contentLoader: () => repository.getBookContent(book),
-        linksLoader: () => repository.getBookLinks(book),
-        tocLoader: () => repository.getTableOfContents(book),
-        metadataLoader: () async {
-          // Parallel metadata loading
-          if (book.heCategories == null || book.heCategories!.isEmpty) {
-            try {
-              final metadata = await FileSystemData.instance.metadata;
-              final bookMetadata = metadata[book.title];
-              if (bookMetadata != null) {
-                book.heCategories = bookMetadata['heCategories'];
-                book.author = bookMetadata['author'];
-                book.heEra = bookMetadata['heEra'];
-              }
-            } catch (_) {
-              // Metadata load failure shouldn't block content
-            }
-          }
-        },
-      );
+      final contentFuture = repository.getBookContent(book);
+      final linksFuture = repository.getBookLinks(book);
+      final tocFuture = repository.getTableOfContents(book);
+      
+      // Wait for all to complete
+      final results = await Future.wait([contentFuture, linksFuture, tocFuture]);
+      final content = results[0] as String;
+      final links = results[1] as List<Link>;
+      final tableOfContents = results[2] as List<TocEntry>;
 
-      final content = loadResult.content;
-      final links = loadResult.links;
-      final tableOfContents = loadResult.tableOfContents;
+      // Load metadata
+      if (book.heCategories == null || book.heCategories!.isEmpty) {
+        try {
+          final metadata = await FileSystemData.instance.metadata;
+          final bookMetadata = metadata[book.title];
+          if (bookMetadata != null) {
+            book.heCategories = bookMetadata['heCategories'];
+            book.author = bookMetadata['author'];
+            book.heEra = bookMetadata['heEra'];
+          }
+        } catch (_) {
+          // Metadata load failure shouldn't block content
+        }
+      }
 
       // Extract categories from path if still missing
       if (book.heCategories == null || book.heCategories!.isEmpty) {

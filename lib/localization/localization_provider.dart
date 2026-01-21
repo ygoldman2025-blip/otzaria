@@ -48,8 +48,10 @@ class LocalizationProvider extends ChangeNotifier {
 
   /// Initialize from saved locale
   void initializeLocale(String? savedLocale) {
-    if (savedLocale == 'en' || savedLocale == 'he') {
-      _currentLocale = savedLocale;
+    if (savedLocale == 'en') {
+      _currentLocale = 'en';
+    } else if (savedLocale == 'he') {
+      _currentLocale = 'he';
     }
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:otzaria/localization/app_strings.dart';
 import 'package:otzaria/localization/localization_provider.dart';
 
@@ -36,11 +37,9 @@ extension LocalizationExt on BuildContext {
   /// Translate a string for a specific locale
   static String _translate(String key, String locale) {
     if (locale == 'en') {
-      return AppStrings._englishStrings[key] ?? key;
+      return AppStrings.getEnglish(key);
     }
     // Default to Hebrew
-    return AppStrings._hebrewStrings[key] ?? key;
+    return AppStrings.getHebrew(key);
   }
 }
-
-import 'package:provider/provider.dart';
