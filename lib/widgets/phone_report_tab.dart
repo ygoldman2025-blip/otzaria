@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import '../models/phone_report_data.dart';
@@ -416,7 +417,7 @@ class _PhoneReportTabState extends State<PhoneReportTab> {
                       ),
                       child: TextButton(
                         onPressed: widget.onCancel,
-                        child: const Text('ביטול הדיווח'),
+                        child: Text(context.tr('ביטול הדיווח')),
                       ),
                     ),
                   ],
@@ -441,7 +442,7 @@ class _PhoneReportTabState extends State<PhoneReportTab> {
       children: [
         TextButton(
           onPressed: widget.onCancel,
-          child: const Text('ביטול הדיווח'),
+          child: Text(context.tr('ביטול הדיווח')),
         ),
       ],
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/empty_library/bloc/empty_library_bloc.dart';
@@ -78,7 +79,7 @@ class _EmptyLibraryView extends StatelessWidget {
               : () => BlocProvider.of<EmptyLibraryBloc>(context)
                   .add(PickDirectoryRequested()),
           icon: const Icon(FluentIcons.folder_open_24_regular),
-          label: const Text('בחר תיקייה'),
+          label: Text(context.tr('בחר תיקייה')),
         ),
         const SizedBox(height: 32),
         if (Platform.isAndroid)
@@ -88,7 +89,7 @@ class _EmptyLibraryView extends StatelessWidget {
                 : () => BlocProvider.of<EmptyLibraryBloc>(context)
                     .add(PickAndExtractZipRequested()),
             icon: const Icon(FluentIcons.folder_zip_24_regular),
-            label: const Text('בחר קובץ ZIP מהמכשיר'),
+            label: Text(context.tr('בחר קובץ ZIP מהמכשיר')),
           ),
         const Text(
           'או',
@@ -104,7 +105,7 @@ class _EmptyLibraryView extends StatelessWidget {
                 : () => BlocProvider.of<EmptyLibraryBloc>(context)
                     .add(DownloadLibraryRequested()),
             icon: const Icon(FluentIcons.arrow_download_24_regular),
-            label: const Text('הורד את הספרייה מהאינטרנט (1.5GB)'),
+            label: Text(context.tr('הורד את הספרייה מהאינטרנט (1.5GB)')),
           ),
       ],
     );

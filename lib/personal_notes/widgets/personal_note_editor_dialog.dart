@@ -63,12 +63,12 @@ class _PersonalNoteEditorDialogState extends State<PersonalNoteEditorDialog> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('אזהרה'),
-        content: const Text('ההערה לא נשמרה, לסגור?'),
+        title: Text(context.tr('אזהרה')),
+        content: Text(context.tr('ההערה לא נשמרה, לסגור?')),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('ביטול'),
+            child: Text(context.tr('ביטול')),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),

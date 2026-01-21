@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/text_book/bloc/text_book_bloc.dart';
@@ -226,7 +227,7 @@ class CommentatorsListViewState extends State<CommentatorsListView> {
                 if (commentatorsList.isNotEmpty)
                   CheckboxListTile(
                     title:
-                        const Text('הצג את כל המפרשים'), // שמרתי את השינוי שלך
+                        Text(context.tr('הצג את כל המפרשים')), // שמרתי את השינוי שלך
                     value: commentatorsList
                         .where((e) =>
                             !e.startsWith('__TITLE_') &&
@@ -262,7 +263,7 @@ class CommentatorsListViewState extends State<CommentatorsListView> {
                         final allActive = _torahShebichtav
                             .every(state.activeCommentators.contains);
                         return CheckboxListTile(
-                          title: const Text('הצג את כל התורה שבכתב'),
+                          title: Text(context.tr('הצג את כל התורה שבכתב')),
                           value: allActive,
                           onChanged: (checked) {
                             final current =
@@ -285,7 +286,7 @@ class CommentatorsListViewState extends State<CommentatorsListView> {
                         final allActive =
                             _chazal.every(state.activeCommentators.contains);
                         return CheckboxListTile(
-                          title: const Text('הצג את כל חז"ל'),
+                          title: Text(context.tr('הצג את כל חז"ל')),
                           value: allActive,
                           onChanged: (checked) {
                             final current =
@@ -308,7 +309,7 @@ class CommentatorsListViewState extends State<CommentatorsListView> {
                         final allActive =
                             _rishonim.every(state.activeCommentators.contains);
                         return CheckboxListTile(
-                          title: const Text('הצג את כל הראשונים'),
+                          title: Text(context.tr('הצג את כל הראשונים')),
                           value: allActive,
                           onChanged: (checked) {
                             final current =
@@ -331,7 +332,7 @@ class CommentatorsListViewState extends State<CommentatorsListView> {
                         final allActive =
                             _acharonim.every(state.activeCommentators.contains);
                         return CheckboxListTile(
-                          title: const Text('הצג את כל האחרונים'),
+                          title: Text(context.tr('הצג את כל האחרונים')),
                           value: allActive,
                           onChanged: (checked) {
                             final current =
@@ -354,7 +355,7 @@ class CommentatorsListViewState extends State<CommentatorsListView> {
                         final allActive =
                             _modern.every(state.activeCommentators.contains);
                         return CheckboxListTile(
-                          title: const Text('הצג את כל מחברי זמננו'),
+                          title: Text(context.tr('הצג את כל מחברי זמננו')),
                           value: allActive,
                           onChanged: (checked) {
                             final current =
@@ -377,7 +378,7 @@ class CommentatorsListViewState extends State<CommentatorsListView> {
                         final allActive =
                             _ungrouped.every(state.activeCommentators.contains);
                         return CheckboxListTile(
-                          title: const Text('הצג את כל שאר המפרשים'),
+                          title: Text(context.tr('הצג את כל שאר המפרשים')),
                           value: allActive,
                           onChanged: (checked) {
                             final current =

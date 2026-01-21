@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/models/books.dart';
@@ -159,7 +160,7 @@ class _BookPreviewPanelState extends State<BookPreviewPanel> {
             ElevatedButton.icon(
               onPressed: () => widget.onOpenInReader?.call(0),
               icon: const Icon(FluentIcons.open_24_regular),
-              label: const Text('פתח בעיון'),
+              label: Text(context.tr('פתח בעיון')),
             ),
           ],
         ),

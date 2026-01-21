@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -150,19 +151,19 @@ class _PdfCommentaryPanelState extends State<PdfCommentaryPanel>
     return ctx.ContextMenu(
       entries: [
         ctx.MenuItem(
-          label: const Text('העתק'),
+          label: Text(context.tr('העתק')),
           icon: const Icon(FluentIcons.copy_24_regular),
           enabled: _savedSelectedText != null &&
               _savedSelectedText!.trim().isNotEmpty,
           onSelected: (_) => _copyFormattedText(),
         ),
         ctx.MenuItem(
-          label: const Text('העתק את כל הטקסט'),
+          label: Text(context.tr('העתק את כל הטקסט')),
           icon: const Icon(FluentIcons.document_copy_24_regular),
           onSelected: (_) => _copyAllVisibleText(),
         ),
         ctx.MenuItem(
-          label: const Text('בחר את כל הטקסט'),
+          label: Text(context.tr('בחר את כל הטקסט')),
           icon: const Icon(FluentIcons.select_all_on_24_regular),
           onSelected: (_) =>
               _selectionKey.currentState?.selectableRegion.selectAll(),
@@ -478,7 +479,7 @@ class _PdfCommentaryPanelState extends State<PdfCommentaryPanel>
                     });
                   },
                   icon: const Icon(FluentIcons.apps_list_24_regular),
-                  label: const Text('בחר מפרשים'),
+                  label: Text(context.tr('בחר מפרשים')),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,

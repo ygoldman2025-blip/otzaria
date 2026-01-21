@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import '../services/overrides_rebase_service.dart';
 
 /// Dialog for resolving rebase conflicts
@@ -33,7 +34,7 @@ class _ConflictResolutionDialogState extends State<ConflictResolutionDialog> {
         ),
       },
       child: AlertDialog(
-        title: const Text('קונפליקט בעריכה'),
+        title: Text(context.tr('קונפליקט בעריכה')),
         content: SizedBox(
           width: double.maxFinite,
           height: 400,
@@ -209,14 +210,14 @@ class _ConflictResolutionDialogState extends State<ConflictResolutionDialog> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('ביטול'),
+            child: Text(context.tr('ביטול')),
           ),
           ElevatedButton(
             onPressed: () {
               widget.onResolve(_selectedResolution);
               Navigator.of(context).pop();
             },
-            child: const Text('פתור קונפליקט'),
+            child: Text(context.tr('פתור קונפליקט')),
           ),
         ],
       ),

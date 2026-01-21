@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:flutter/services.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -186,7 +187,7 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
     return ContextMenu(
       entries: [
         MenuItem(
-          label: const Text('העתק'),
+          label: Text(context.tr('העתק')),
           icon: const Icon(FluentIcons.copy_24_regular),
           enabled: _savedSelectedText != null &&
               _savedSelectedText!.trim().isNotEmpty,
@@ -197,18 +198,18 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
           ),
         ),
         MenuItem(
-            label: const Text('חיפוש'),
+            label: Text(context.tr('חיפוש')),
             onSelected: (_) => widget.openLeftPaneTab(1)),
         const MenuDivider(),
         MenuItem(
-          label: const Text('בחר את כל הטקסט'),
+          label: Text(context.tr('בחר את כל הטקסט')),
           onSelected: (_) =>
               _selectionKey.currentState?.selectableRegion.selectAll(),
         ),
         const MenuDivider(),
         // שיתוף קישור לספר
         MenuItem(
-          label: const Text('העתק קישור לספר זה'),
+          label: Text(context.tr('העתק קישור לספר זה')),
           icon: const Icon(FluentIcons.share_24_regular),
           onSelected: (_) => _shareBookLink(),
         ),

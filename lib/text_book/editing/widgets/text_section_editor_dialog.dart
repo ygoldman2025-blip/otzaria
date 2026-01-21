@@ -540,12 +540,12 @@ class _TextSectionEditorDialogState extends State<TextSectionEditorDialog> {
             TextButton.icon(
               onPressed: _hasUnsavedChanges ? _save : null,
               icon: const Icon(FluentIcons.save_24_regular),
-              label: const Text('שמור'),
+              label: Text(context.tr('שמור')),
             ),
             TextButton.icon(
               onPressed: _saveAndClose,
               icon: const Icon(FluentIcons.save_arrow_right_24_regular),
-              label: const Text('שמור וצא'),
+              label: Text(context.tr('שמור וצא')),
             ),
           ],
         ),
@@ -705,7 +705,7 @@ class _SearchDialogState extends State<_SearchDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('חיפוש בטקסט'),
+      title: Text(context.tr('חיפוש בטקסט')),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -734,7 +734,7 @@ class _SearchDialogState extends State<_SearchDialog> {
         ),
         ElevatedButton(
           onPressed: _performSearch,
-          child: const Text('חפש'),
+          child: Text(context.tr('חפש')),
         ),
       ],
     );
@@ -775,7 +775,7 @@ class _LinkInsertDialogState extends State<_LinkInsertDialog> {
         ),
       },
       child: AlertDialog(
-        title: const Text('הוסף קישור'),
+        title: Text(context.tr('הוסף קישור')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -804,14 +804,14 @@ class _LinkInsertDialogState extends State<_LinkInsertDialog> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('ביטול'),
+            child: Text(context.tr('ביטול')),
           ),
           TextButton(
             onPressed: () {
               widget.onInsert(_textController.text, _urlController.text);
               Navigator.of(context).pop();
             },
-            child: const Text('הוסף'),
+            child: Text(context.tr('הוסף')),
           ),
         ],
       ),

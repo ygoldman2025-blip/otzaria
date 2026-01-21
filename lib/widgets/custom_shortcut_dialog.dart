@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:flutter/services.dart';
 import 'package:otzaria/utils/shortcut_helper.dart';
 
@@ -132,7 +133,7 @@ class _CustomShortcutDialogState extends State<CustomShortcutDialog> {
                     });
                   },
                   icon: const Icon(Icons.stop),
-                  label: const Text('עצור הקלטה'),
+                  label: Text(context.tr('עצור הקלטה')),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Theme.of(context).colorScheme.error,
                     foregroundColor: Theme.of(context).colorScheme.onError,
@@ -148,7 +149,7 @@ class _CustomShortcutDialogState extends State<CustomShortcutDialog> {
                     });
                   },
                   icon: const Icon(Icons.fiber_manual_record),
-                  label: const Text('התחל הקלטה'),
+                  label: Text(context.tr('התחל הקלטה')),
                 ),
             ],
           ),
@@ -156,7 +157,7 @@ class _CustomShortcutDialogState extends State<CustomShortcutDialog> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('ביטול'),
+            child: Text(context.tr('ביטול')),
           ),
           TextButton(
             onPressed: _pressedKeys.isEmpty
@@ -165,7 +166,7 @@ class _CustomShortcutDialogState extends State<CustomShortcutDialog> {
                     final shortcut = ShortcutHelper.formatKeysToShortcut(_pressedKeys);
                     Navigator.pop(context, shortcut);
                   },
-            child: const Text('אישור'),
+            child: Text(context.tr('אישור')),
           ),
         ],
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_context_menu/flutter_context_menu.dart' as ctx;
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
@@ -26,14 +27,14 @@ class ContextMenuUtils {
     return ctx.ContextMenu(
       entries: [
         ctx.MenuItem(
-          label: const Text('העתק'),
+          label: Text(context.tr('העתק')),
           icon: const Icon(FluentIcons.copy_24_regular),
           enabled:
               savedSelectedText != null && savedSelectedText.trim().isNotEmpty,
           onSelected: (_) => onCopySelected(),
         ),
         ctx.MenuItem(
-          label: const Text('העתק את כל הפסקה'),
+          label: Text(context.tr('העתק את כל הפסקה')),
           icon: const Icon(FluentIcons.document_copy_24_regular),
           onSelected: (_) => copyCommentaryParagraph(
             context: context,
@@ -43,7 +44,7 @@ class ContextMenuUtils {
         ),
         const ctx.MenuDivider(),
         ctx.MenuItem(
-          label: const Text('פתח ספר זה בחלון נפרד'),
+          label: Text(context.tr('פתח ספר זה בחלון נפרד')),
           icon: const Icon(FluentIcons.open_24_regular),
           onSelected: (_) {
             openBookCallback(TextBookTab(

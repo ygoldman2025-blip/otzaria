@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
@@ -103,7 +104,7 @@ class _SelectedLineLinksViewState extends State<SelectedLineLinksView> {
                               });
                             },
                           ),
-                          const Text('חפש גם בתוכן הקישורים'),
+                          Text(context.tr('חפש גם בתוכן הקישורים')),
                         ],
                       ),
                     ),

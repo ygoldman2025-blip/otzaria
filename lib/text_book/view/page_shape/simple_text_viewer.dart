@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:otzaria/settings/settings_bloc.dart';
@@ -93,7 +94,7 @@ class _SimpleTextViewerState extends State<SimpleTextViewer> {
     return ctx.ContextMenu(
       entries: [
         ctx.MenuItem(
-          label: const Text('חיפוש'),
+          label: Text(context.tr('חיפוש')),
           icon: const Icon(FluentIcons.search_24_regular),
           onSelected: (_) {
             // בצורת הדף אין חיפוש - אפשר להוסיף בעתיד
@@ -103,21 +104,21 @@ class _SimpleTextViewerState extends State<SimpleTextViewer> {
         const ctx.MenuDivider(),
         // הערות אישיות
         ctx.MenuItem(
-          label: const Text('הוסף הערה אישית '),
+          label: Text(context.tr('הוסף הערה אישית ')),
           icon: const Icon(FluentIcons.note_add_24_regular),
           onSelected: (_) => _createNoteForCurrentLine(index),
         ),
         const ctx.MenuDivider(),
         // העתקה
         ctx.MenuItem(
-          label: const Text('העתק'),
+          label: Text(context.tr('העתק')),
           icon: const Icon(FluentIcons.copy_24_regular),
           enabled: _savedSelectedText != null &&
               _savedSelectedText!.trim().isNotEmpty,
           onSelected: (_) => _copyFormattedText(),
         ),
         ctx.MenuItem(
-          label: const Text('העתק את כל הפסקה'),
+          label: Text(context.tr('העתק את כל הפסקה')),
           icon: const Icon(FluentIcons.document_copy_24_regular),
           enabled: index >= 0 && index < widget.content.length,
           onSelected: (_) => _copyParagraphByIndex(index),
@@ -125,28 +126,28 @@ class _SimpleTextViewerState extends State<SimpleTextViewer> {
         const ctx.MenuDivider(),
         // עריכת פסקה
         ctx.MenuItem(
-          label: const Text('ערוך פסקה זו'),
+          label: Text(context.tr('ערוך פסקה זו')),
           icon: const Icon(FluentIcons.edit_24_regular),
           onSelected: (_) => _editParagraph(index),
         ),
         const ctx.MenuDivider(),
         // שיתוף קישורים
         ctx.MenuItem.submenu(
-          label: const Text('שתף קישור ישיר'),
+          label: Text(context.tr('שתף קישור ישיר')),
           icon: const Icon(FluentIcons.share_24_regular),
           items: [
             ctx.MenuItem(
-              label: const Text('העתק קישור ישיר לספר זה'),
+              label: Text(context.tr('העתק קישור ישיר לספר זה')),
               icon: const Icon(FluentIcons.link_24_regular),
               onSelected: (_) => _shareBookLink(),
             ),
             ctx.MenuItem(
-              label: const Text('העתק קישור ישיר למקטע זה'),
+              label: Text(context.tr('העתק קישור ישיר למקטע זה')),
               icon: const Icon(FluentIcons.link_square_24_regular),
               onSelected: (_) => _shareSectionLink(index),
             ),
             ctx.MenuItem(
-              label: const Text('העתק קישור ישיר למקטע זה עם הדגשת טקסט'),
+              label: Text(context.tr('העתק קישור ישיר למקטע זה עם הדגשת טקסט')),
               icon: const Icon(FluentIcons.highlight_24_regular),
               onSelected: (_) => _shareTextHighlightLink(index),
             ),

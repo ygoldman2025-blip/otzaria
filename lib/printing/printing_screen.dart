@@ -1,9 +1,15 @@
 import 'dart:io';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'dart:isolate';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'dart:math';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'dart:ui' as ui;
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
@@ -611,7 +617,7 @@ class _PrintingScreenState extends State<PrintingScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('הדפסה'),
+        title: Text(context.tr('הדפסה')),
         centerTitle: true,
         actions: [
           OutlinedButton.icon(
@@ -624,7 +630,7 @@ class _PrintingScreenState extends State<PrintingScreen> {
               }
             },
             icon: const Icon(FluentIcons.save_24_regular),
-            label: const Text('שמירה'),
+            label: Text(context.tr('שמירה')),
           ),
           const SizedBox(width: 8),
           FilledButton.icon(
@@ -636,7 +642,7 @@ class _PrintingScreenState extends State<PrintingScreen> {
               );
             },
             icon: const Icon(FluentIcons.print_24_regular),
-            label: const Text('הדפסה'),
+            label: Text(context.tr('הדפסה')),
           ),
           const SizedBox(width: 16),
         ],
@@ -682,7 +688,7 @@ class _PrintingScreenState extends State<PrintingScreen> {
                               ),
                               const SizedBox(height: 12),
                               SwitchListTile(
-                                title: const Text('תצוגה מוקטנת של כל הדפים'),
+                                title: Text(context.tr('תצוגה מוקטנת של כל הדפים')),
                                 dense: true,
                                 contentPadding: EdgeInsets.zero,
                                 value: _showThumbnails,
@@ -929,7 +935,7 @@ class _PrintingScreenState extends State<PrintingScreen> {
                               ),
                               const SizedBox(height: 12),
                               SwitchListTile(
-                                title: const Text('תצוגה מוקטנת של כל הדפים'),
+                                title: Text(context.tr('תצוגה מוקטנת של כל הדפים')),
                                 dense: true,
                                 contentPadding: EdgeInsets.zero,
                                 value: _showThumbnails,
@@ -942,7 +948,7 @@ class _PrintingScreenState extends State<PrintingScreen> {
                               const SizedBox(height: 8),
                               if (!isCustomPdfMode) ...[
                                 SwitchListTile(
-                                  title: const Text('כלול מפרשים'),
+                                  title: Text(context.tr('כלול מפרשים')),
                                   dense: true,
                                   contentPadding: EdgeInsets.zero,
                                   value: _includeCommentaries,
@@ -953,7 +959,7 @@ class _PrintingScreenState extends State<PrintingScreen> {
                                   },
                                 ),
                                 SwitchListTile(
-                                  title: const Text('כלול הערות אישיות'),
+                                  title: Text(context.tr('כלול הערות אישיות')),
                                   dense: true,
                                   contentPadding: EdgeInsets.zero,
                                   value: _includePersonalNotes,
@@ -1242,7 +1248,7 @@ class _PrintingScreenState extends State<PrintingScreen> {
                               const SizedBox(height: 16),
                               // הגדרות ניקוד וטעמים
                               SwitchListTile(
-                                title: const Text('הדפסה עם ניקוד'),
+                                title: Text(context.tr('הדפסה עם ניקוד')),
                                 dense: true,
                                 contentPadding: EdgeInsets.zero,
                                 value: !_removeNikud,
@@ -1253,7 +1259,7 @@ class _PrintingScreenState extends State<PrintingScreen> {
                                 },
                               ),
                               SwitchListTile(
-                                title: const Text('הדפסה עם טעמים'),
+                                title: Text(context.tr('הדפסה עם טעמים')),
                                 dense: true,
                                 contentPadding: EdgeInsets.zero,
                                 value: !_removeTaamim,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:otzaria/widgets/rtl_text_field.dart';
 
 /// דיאלוג בחירה עם חיפוש
@@ -90,7 +91,7 @@ class _SelectionDialogState<T> extends State<SelectionDialog<T>> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('ביטול'),
+            child: Text(context.tr('ביטול')),
           ),
         ],
       );

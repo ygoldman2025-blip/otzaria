@@ -880,7 +880,7 @@ class _AboutScreenState extends State<AboutScreen> {
                                 size: 18),
                       ),
                       label:
-                          const Text('נדרים+', style: TextStyle(fontSize: 12)),
+                          Text(context.tr('נדרים+'), style: TextStyle(fontSize: 12)),
                     ),
                     const SizedBox(height: 8),
                     ElevatedButton.icon(
@@ -892,7 +892,7 @@ class _AboutScreenState extends State<AboutScreen> {
                       ),
                       icon:
                           const Icon(FluentIcons.payment_24_regular, size: 18),
-                      label: const Text('אחר', style: TextStyle(fontSize: 12)),
+                      label: Text(context.tr('אחר'), style: TextStyle(fontSize: 12)),
                     ),
                   ],
                 );
@@ -923,7 +923,7 @@ class _AboutScreenState extends State<AboutScreen> {
                                 size: 18),
                       ),
                       label:
-                          const Text('נדרים+', style: TextStyle(fontSize: 12)),
+                          Text(context.tr('נדרים+'), style: TextStyle(fontSize: 12)),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -937,7 +937,7 @@ class _AboutScreenState extends State<AboutScreen> {
                       ),
                       icon:
                           const Icon(FluentIcons.payment_24_regular, size: 18),
-                      label: const Text('אחר', style: TextStyle(fontSize: 12)),
+                      label: Text(context.tr('אחר'), style: TextStyle(fontSize: 12)),
                     ),
                   ),
                 ],
@@ -1245,12 +1245,12 @@ class _AboutScreenState extends State<AboutScreen> {
               ElevatedButton.icon(
                 onPressed: () => _showChangelogDialog(context),
                 icon: const Icon(FluentIcons.history_24_regular),
-                label: const Text('יומן שינויים בתוכנה'),
+                label: Text(context.tr('יומן שינויים בתוכנה')),
               ),
               ElevatedButton.icon(
                 onPressed: () => _showLibraryChangelogDialog(context),
                 icon: const Icon(FluentIcons.library_24_regular),
-                label: const Text('יומן שינויים בספרייה'),
+                label: Text(context.tr('יומן שינויים בספרייה')),
               ),
             ],
           ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -103,7 +104,7 @@ class _PersonalNotesManagerScreenState
             const SizedBox(height: 12),
             FilledButton(
               onPressed: _loadBooks,
-              child: const Text('נסה שוב'),
+              child: Text(context.tr('נסה שוב')),
             ),
           ],
         ),
@@ -115,11 +116,11 @@ class _PersonalNotesManagerScreenState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('לא נמצאו הערות אישיות'),
+            Text(context.tr('לא נמצאו הערות אישיות')),
             const SizedBox(height: 12),
             FilledButton(
               onPressed: _loadBooks,
-              child: const Text('רענון'),
+              child: Text(context.tr('רענון')),
             ),
           ],
         ),

@@ -1,7 +1,11 @@
 import 'dart:io';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'dart:math';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'dart:async';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:otzaria/bookmarks/bloc/bookmark_bloc.dart';
@@ -1016,7 +1020,7 @@ class _PdfBookScreenState extends State<PdfBookScreen>
       barrierDismissible: false,
       builder: (context) {
         return AlertDialog(
-          title: const Text('לעבור לURL?'),
+          title: Text(context.tr('לעבור לURL?')),
           content: SelectionArea(
             child: Text.rich(
               TextSpan(
@@ -1033,11 +1037,11 @@ class _PdfBookScreenState extends State<PdfBookScreen>
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('ביטול'),
+              child: Text(context.tr('ביטול')),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('עבור'),
+              child: Text(context.tr('עבור')),
             ),
           ],
         );

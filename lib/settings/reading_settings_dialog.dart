@@ -252,7 +252,7 @@ void showReadingSettingsDialog(BuildContext context) {
                           ListTile(
                             leading: const Icon(
                                 FluentIcons.text_align_justify_24_regular),
-                            title: const Text('רוחב הטקסט'),
+                            title: Text(context.tr('רוחב הטקסט')),
                             subtitle: Text(
                               currentLevel == 0
                                   ? 'הטקסט ימלא את כל הרוחב הזמין'
@@ -319,7 +319,7 @@ void showReadingSettingsDialog(BuildContext context) {
 
                   // הצגת טעמי המקרא
                   SwitchListTile(
-                    title: const Text('הצגת טעמי המקרא'),
+                    title: Text(context.tr('הצגת טעמי המקרא')),
                     subtitle: Text(settingsState.showTeamim
                         ? 'המקרא יוצג עם טעמים'
                         : 'המקרא יוצג ללא טעמים'),
@@ -332,7 +332,7 @@ void showReadingSettingsDialog(BuildContext context) {
 
                   // הסרת ניקוד כברירת מחדל
                   SwitchListTile(
-                    title: const Text('הסרת ניקוד כברירת מחדל'),
+                    title: Text(context.tr('הסרת ניקוד כברירת מחדל')),
                     subtitle: Text(settingsState.defaultRemoveNikud
                         ? 'הניקוד יוסר כברירת מחדל'
                         : 'הניקוד יוצג כברירת מחדל'),
@@ -347,8 +347,8 @@ void showReadingSettingsDialog(BuildContext context) {
                     Padding(
                       padding: const EdgeInsets.only(right: 32.0),
                       child: CheckboxListTile(
-                        title: const Text('הסרת ניקוד מספרי התנ"ך'),
-                        subtitle: const Text('גם ספרי התנ"ך יוצגו ללא ניקוד'),
+                        title: Text(context.tr('הסרת ניקוד מספרי התנ"ך')),
+                        subtitle: Text(context.tr('גם ספרי התנ"ך יוצגו ללא ניקוד')),
                         value: settingsState.removeNikudFromTanach,
                         onChanged: (bool? value) {
                           if (value != null) {
@@ -379,7 +379,7 @@ void showReadingSettingsDialog(BuildContext context) {
 
                   // יישור טאבים לימין
                   SwitchListTile(
-                    title: const Text('יישור טאבים לימין'),
+                    title: Text(context.tr('יישור טאבים לימין')),
                     subtitle: Text(settingsState.alignTabsToRight
                         ? 'הטאבים יוצגו בצד ימין'
                         : 'הטאבים יוצגו במרכז'),
@@ -410,7 +410,7 @@ void showReadingSettingsDialog(BuildContext context) {
 
                   // הצמדת סרגל צד
                   SwitchListTile(
-                    title: const Text('הצמדת סרגל צד'),
+                    title: Text(context.tr('הצמדת סרגל צד')),
                     subtitle: Text(settingsState.pinSidebar
                         ? 'סרגל הצד יוצמד תמיד'
                         : 'סרגל הצד יפעל כרגיל'),
@@ -428,7 +428,7 @@ void showReadingSettingsDialog(BuildContext context) {
 
                   // פתיחת סרגל צד
                   SwitchListTile(
-                    title: const Text('פתיחת סרגל צד כברירת מחדל'),
+                    title: Text(context.tr('פתיחת סרגל צד כברירת מחדל')),
                     subtitle: Text(settingsState.defaultSidebarOpen
                         ? 'סרגל הצד יפתח אוטומטית'
                         : 'סרגל הצד ישאר סגור'),
@@ -449,7 +449,7 @@ void showReadingSettingsDialog(BuildContext context) {
                       final splitedView =
                           Settings.getValue<bool>('key-splited-view') ?? false;
                       return SwitchListTile(
-                        title: const Text('ברירת המחדל להצגת המפרשים'),
+                        title: Text(context.tr('ברירת המחדל להצגת המפרשים')),
                         subtitle: Text(splitedView
                             ? 'המפרשים יוצגו לצד הטקסט'
                             : 'המפרשים יוצגו מתחת הטקסט'),
@@ -652,7 +652,7 @@ void showReadingSettingsDialog(BuildContext context) {
 
                   // הפעלת שמירת התאמות פר-ספר
                   SwitchListTile(
-                    title: const Text('שמירת התאמות פר-ספר'),
+                    title: Text(context.tr('שמירת התאמות פר-ספר')),
                     subtitle: Text(settingsState.enablePerBookSettings
                         ? 'שינויים בסרגל הלחצנים יישמרו לכל ספר בנפרד'
                         : 'כל הספרים ישתמשו בהגדרות הכלליות'),
@@ -674,19 +674,19 @@ void showReadingSettingsDialog(BuildContext context) {
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (context) => AlertDialog(
-                              title: const Text('אישור מחיקה'),
+                              title: Text(context.tr('אישור מחיקה')),
                               content: const Text(
                                   'האם אתה בטוח שברצונך למחוק את כל ההגדרות הפר-ספריות?\nפעולה זו אינה ניתנת לביטול.'),
                               actions: [
                                 TextButton(
                                   onPressed: () =>
                                       Navigator.of(context).pop(false),
-                                  child: const Text('ביטול'),
+                                  child: Text(context.tr('ביטול')),
                                 ),
                                 TextButton(
                                   onPressed: () =>
                                       Navigator.of(context).pop(true),
-                                  child: const Text('מחק הכל'),
+                                  child: Text(context.tr('מחק הכל')),
                                 ),
                               ],
                             ),
@@ -701,7 +701,7 @@ void showReadingSettingsDialog(BuildContext context) {
                           }
                         },
                         icon: const Icon(FluentIcons.delete_24_regular),
-                        label: const Text('אפס את כל הגדרות אלו, בכל הספרים'),
+                        label: Text(context.tr('אפס את כל הגדרות אלו, בכל הספרים')),
                         style: ElevatedButton.styleFrom(
                           backgroundColor:
                               Theme.of(context).colorScheme.errorContainer,

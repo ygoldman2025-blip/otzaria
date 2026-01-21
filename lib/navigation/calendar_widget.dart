@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_spinbox/flutter_spinbox.dart';
@@ -210,12 +211,12 @@ class CalendarWidget extends StatelessWidget {
               children: [
                 ElevatedButton(
                   onPressed: () => context.read<CalendarCubit>().jumpToToday(),
-                  child: const Text('היום'),
+                  child: Text(context.tr('היום')),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: () => _showJumpToDateDialog(context),
-                  child: const Text('עבור לתאריך'),
+                  child: Text(context.tr('עבור לתאריך')),
                 ),
               ],
             ),
@@ -1588,7 +1589,7 @@ class CalendarWidget extends StatelessWidget {
         return StatefulBuilder(
           builder: (builderContext, setState) {
             return AlertDialog(
-              title: const Text('קפוץ לתאריך'),
+              title: Text(context.tr('קפוץ לתאריך')),
               content: SizedBox(
                 width: 350,
                 height: 450,
@@ -1659,7 +1660,7 @@ class CalendarWidget extends StatelessWidget {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('ביטול'),
+                  child: Text(context.tr('ביטול')),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -1684,7 +1685,7 @@ class CalendarWidget extends StatelessWidget {
                     context.read<CalendarCubit>().jumpToDate(dateToJump);
                     Navigator.of(dialogContext).pop();
                   },
-                  child: const Text('קפוץ'),
+                  child: Text(context.tr('קפוץ')),
                 ),
               ],
             );
@@ -1896,7 +1897,7 @@ class CalendarWidget extends StatelessWidget {
 
                       // אירוע חוזר
                       SwitchListTile(
-                        title: const Text('אירוע חוזר'),
+                        title: Text(context.tr('אירוע חוזר')),
                         value: isRecurring,
                         onChanged: (value) =>
                             setState(() => isRecurring = value),
@@ -1948,7 +1949,7 @@ class CalendarWidget extends StatelessWidget {
                               // --- כאן נמצא השינוי המרכזי ---
                               // הוספנו תיבת סימון לבחירת "תמיד"
                               CheckboxListTile(
-                                title: const Text('חזרה ללא הגבלה (תמיד)'),
+                                title: Text(context.tr('חזרה ללא הגבלה (תמיד)')),
                                 value: recurForever,
                                 onChanged: (value) {
                                   setState(() {
@@ -1993,7 +1994,7 @@ class CalendarWidget extends StatelessWidget {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('ביטול'),
+                  child: Text(context.tr('ביטול')),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -2388,7 +2389,7 @@ class _TimesAndEventsTabViewState extends State<_TimesAndEventsTabView>
                                 context, widget.state),
                             icon: const Icon(FluentIcons.add_24_regular,
                                 size: 16),
-                            label: const Text('צור אירוע'),
+                            label: Text(context.tr('צור אירוע')),
                             style: ElevatedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 8),
@@ -2611,11 +2612,11 @@ class _ZmanAlertDialogState extends State<_ZmanAlertDialog> {
             onPressed: () => Navigator.of(context).pop(
               const _ZmanAlertDialogResult(minutesBefore: 0, cancelAlert: true),
             ),
-            child: const Text('בטל התראה'),
+            child: Text(context.tr('בטל התראה')),
           ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('ביטול'),
+          child: Text(context.tr('ביטול')),
         ),
         FilledButton(
           onPressed: () {

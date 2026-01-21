@@ -22,7 +22,7 @@ Future<void> showGematriaSettingsDialog(BuildContext context) async {
     context: context,
     builder: (context) => StatefulBuilder(
       builder: (context, setDialogState) => AlertDialog(
-        title: const Text('הגדרות חיפוש גימטריה', textAlign: TextAlign.right),
+        title: Text(context.tr('gematriaSearchSettings'), textAlign: TextAlign.right),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,

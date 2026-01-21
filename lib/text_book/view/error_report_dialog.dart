@@ -309,8 +309,8 @@ $detailsSection
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('דיווח נשלח בהצלחה'),
-        content: const Text('הדיווח נשלח בהצלחה לצוות אוצריא. תודה על הדיווח!'),
+        title: Text(context.tr('דיווח נשלח בהצלחה')),
+        content: Text(context.tr('הדיווח נשלח בהצלחה לצוות אוצריא. תודה על הדיווח!')),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
@@ -321,7 +321,7 @@ $detailsSection
               Navigator.of(dialogContext).pop();
               onReportAgain();
             },
-            child: const Text('פתח דוח שגיאות אחר'),
+            child: Text(context.tr('פתח דוח שגיאות אחר')),
           ),
         ],
       ),
@@ -720,7 +720,7 @@ class _RegularReportTabState extends State<RegularReportTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('סמן את הטקסט שבו נמצאת הטעות:'),
+          Text(context.tr('סמן את הטקסט שבו נמצאת הטעות:')),
           const SizedBox(height: 8),
           Expanded(
             child: Container(
@@ -846,7 +846,7 @@ class _RegularReportTabState extends State<RegularReportTab> {
             children: [
               TextButton(
                 onPressed: widget.onCancel,
-                child: const Text('ביטול'),
+                child: Text(context.tr('ביטול')),
               ),
               ElevatedButton.icon(
                 onPressed: canSubmit
@@ -861,7 +861,7 @@ class _RegularReportTabState extends State<RegularReportTab> {
                       }
                     : null,
                 icon: const Icon(FluentIcons.save_24_regular, size: 18),
-                label: const Text('לא מחובר לרשת? שמור לדיווח מאוחר'),
+                label: Text(context.tr('לא מחובר לרשת? שמור לדיווח מאוחר')),
               ),
               // הכפתור "שלח בדוא"ל" מוסתר במצב אופליין
               if (!isOfflineMode)
@@ -878,13 +878,13 @@ class _RegularReportTabState extends State<RegularReportTab> {
                         }
                       : null,
                   icon: const Icon(FluentIcons.mail_24_regular, size: 18),
-                  label: const Text('שלח בדוא"ל'),
+                  label: Text(context.tr('שלח בדוא"ל')),
                 ),
               // הכפתור "שלח ישירות לאוצריא" מוסתר במצב אופליין
               if (!isPhoneDisabled && !isOfflineMode)
                 OutlinedButton(
                   onPressed: null,
-                  child: const Text('שלח ישירות לאוצריא (לא פעיל זמנית)'),
+                  child: Text(context.tr('שלח ישירות לאוצריא (לא פעיל זמנית)')),
                 ),
             ],
           ),

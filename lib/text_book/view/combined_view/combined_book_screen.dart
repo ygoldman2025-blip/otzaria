@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:flutter/services.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -148,7 +149,7 @@ class _CombinedViewState extends State<CombinedView> {
       return ctx.ContextMenu(
         entries: [
           ctx.MenuItem(
-            label: const Text('העתק'),
+            label: Text(context.tr('העתק')),
             icon: const Icon(FluentIcons.copy_24_regular),
             enabled: _savedSelectedText != null &&
                 _savedSelectedText!.trim().isNotEmpty,
@@ -165,17 +166,17 @@ class _CombinedViewState extends State<CombinedView> {
       maxHeight: screenHeight * 0.9,
       entries: [
         ctx.MenuItem(
-            label: const Text('חיפוש'),
+            label: Text(context.tr('חיפוש')),
             icon: const Icon(FluentIcons.search_24_regular),
             onSelected: (_) => widget.openLeftPaneTab(1)),
         ctx.MenuItem(
-          label: const Text('מפרשים'),
+          label: Text(context.tr('מפרשים')),
           icon: const Icon(FluentIcons.book_24_regular),
           enabled: state.availableCommentators.isNotEmpty,
           onSelected: (_) => widget.openLeftPaneTab(0),
         ),
         ctx.MenuItem(
-          label: const Text('קישורים'),
+          label: Text(context.tr('קישורים')),
           icon: const Icon(FluentIcons.link_24_regular),
           enabled: state.visibleLinks.isNotEmpty,
           onSelected: (_) => widget.openLeftPaneTab(1),
@@ -183,55 +184,55 @@ class _CombinedViewState extends State<CombinedView> {
         const ctx.MenuDivider(),
         // הערות אישיות
         ctx.MenuItem(
-          label: const Text('הוסף הערה אישית '),
+          label: Text(context.tr('הוסף הערה אישית ')),
           icon: const Icon(FluentIcons.note_add_24_regular),
           onSelected: (_) => _createNoteForCurrentLine(),
         ),
         const ctx.MenuDivider(),
         // העתקה
         ctx.MenuItem(
-          label: const Text('העתק'),
+          label: Text(context.tr('העתק')),
           icon: const Icon(FluentIcons.copy_24_regular),
           enabled: _savedSelectedText != null &&
               _savedSelectedText!.trim().isNotEmpty,
           onSelected: (_) => _copyFormattedText(),
         ),
         ctx.MenuItem(
-          label: const Text('העתק את כל הפסקה'),
+          label: Text(context.tr('העתק את כל הפסקה')),
           icon: const Icon(FluentIcons.document_copy_24_regular),
           enabled: paragraphIndex >= 0 && paragraphIndex < widget.data.length,
           onSelected: (_) => _copyParagraphByIndex(paragraphIndex),
         ),
         ctx.MenuItem(
-          label: const Text('העתק את הטקסט המוצג'),
+          label: Text(context.tr('העתק את הטקסט המוצג')),
           icon: const Icon(FluentIcons.copy_select_24_regular),
           onSelected: (_) => _copyVisibleText(),
         ),
         const ctx.MenuDivider(),
         // העתק קישור לספר זה - כפריט נפרד
         ctx.MenuItem(
-          label: const Text('העתק קישור לספר זה'),
+          label: Text(context.tr('העתק קישור לספר זה')),
           icon: const Icon(FluentIcons.share_24_regular),
           onSelected: (_) => _shareBookLink(),
         ),
         const ctx.MenuDivider(),
         // תת-תפריט שיתוף קישורים ישירים
         ctx.MenuItem.submenu(
-          label: const Text('שתף קישור ישיר'),
+          label: Text(context.tr('שתף קישור ישיר')),
           icon: const Icon(FluentIcons.share_24_regular),
           items: [
             ctx.MenuItem(
-              label: const Text('העתק קישור ישיר לספר זה'),
+              label: Text(context.tr('העתק קישור ישיר לספר זה')),
               icon: const Icon(FluentIcons.book_24_regular),
               onSelected: (_) => _shareBookLinkDirect(),
             ),
             ctx.MenuItem(
-              label: const Text('העתק קישור ישיר למקטע זה'),
+              label: Text(context.tr('העתק קישור ישיר למקטע זה')),
               icon: const Icon(FluentIcons.document_24_regular),
               onSelected: (_) => _shareSectionLinkForIndex(paragraphIndex),
             ),
             ctx.MenuItem(
-              label: const Text('העתק קישור ישיר למקטע זה עם הדגשת טקסט'),
+              label: Text(context.tr('העתק קישור ישיר למקטע זה עם הדגשת טקסט')),
               icon: const Icon(FluentIcons.highlight_24_regular),
               onSelected: (_) => _shareTextHighlightLinkForIndex(paragraphIndex),
             ),
@@ -240,7 +241,7 @@ class _CombinedViewState extends State<CombinedView> {
         const ctx.MenuDivider(),
         // Edit paragraph option
         ctx.MenuItem(
-          label: const Text('ערוך פסקה זו'),
+          label: Text(context.tr('ערוך פסקה זו')),
           icon: const Icon(FluentIcons.edit_24_regular),
           onSelected: (_) => _editParagraph(paragraphIndex),
         ),

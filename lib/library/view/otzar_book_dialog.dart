@@ -117,7 +117,7 @@ class OtzarBookDialog extends StatelessWidget {
         if (canLaunchLocally && bookExists)
           ElevatedButton.icon(
             icon: const Icon(FluentIcons.desktop_24_regular),
-            label: const Text('פתח מקומית'),
+            label: Text(context.tr('פתח מקומית')),
             onPressed: () {
               Navigator.of(context).pop();
               OtzarUtils.launchOtzarLocal(book.id);
@@ -129,7 +129,7 @@ class OtzarBookDialog extends StatelessWidget {
           ),
         ElevatedButton.icon(
           icon: const Icon(FluentIcons.open_24_regular),
-          label: const Text('פתח באתר'),
+          label: Text(context.tr('פתח באתר')),
           onPressed: () async {
             final errorColor = Theme.of(context).colorScheme.error;
             Navigator.of(context).pop();

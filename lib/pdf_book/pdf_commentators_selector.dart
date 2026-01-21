@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:otzaria/tabs/models/pdf_tab.dart';
 import 'package:otzaria/text_book/models/commentator_group.dart';
@@ -281,7 +282,7 @@ class _PdfCommentatorsSelectorState extends State<PdfCommentatorsSelector> {
               // כפתור הכל
               if (commentatorsList.isNotEmpty)
                 CheckboxListTile(
-                  title: const Text('הצג את כל המפרשים'),
+                  title: Text(context.tr('הצג את כל המפרשים')),
                   value: commentatorsList
                       .where((e) =>
                           !e.startsWith('__TITLE_') &&

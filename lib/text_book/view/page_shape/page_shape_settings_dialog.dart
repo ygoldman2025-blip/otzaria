@@ -268,7 +268,7 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('הגדרות צורת הדף'),
+      title: Text(context.tr('הגדרות צורת הדף')),
       content: SizedBox(
         width: 450,
         child: SingleChildScrollView(
@@ -331,7 +331,7 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (context) => AlertDialog(
-                              title: const Text('חזרה להגדרות גלובליות'),
+                              title: Text(context.tr('חזרה להגדרות גלובליות')),
                               content: const Text(
                                 'האם לאפס את הגדרות התצוגה הספציפיות לספר זה ולחזור להגדרות הגלובליות?',
                               ),
@@ -339,11 +339,11 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
                                 TextButton(
                                   onPressed: () =>
                                       Navigator.pop(context, false),
-                                  child: const Text('ביטול'),
+                                  child: Text(context.tr('ביטול')),
                                 ),
                                 TextButton(
                                   onPressed: () => Navigator.pop(context, true),
-                                  child: const Text('אפס'),
+                                  child: Text(context.tr('אפס')),
                                 ),
                               ],
                             ),
@@ -441,7 +441,7 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          const Text('לספר הנוכחי בלבד'),
+                                          Text(context.tr('לספר הנוכחי בלבד')),
                                           Text(
                                             'המפרשים יחולו רק על "${widget.bookTitle}"',
                                             style:
@@ -477,7 +477,7 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          const Text('לכל הספרים בקטגוריה'),
+                                          Text(context.tr('לכל הספרים בקטגוריה')),
                                           if (_selectedCategory != null)
                                             Text(
                                               'המפרשים יחולו על כל ספרי "$_selectedCategory"',
@@ -536,9 +536,9 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
               ),
               const SizedBox(height: 16),
               SwitchListTile(
-                title: const Text('הדגש פרשנים קשורים'),
+                title: Text(context.tr('הדגש פרשנים קשורים')),
                 subtitle:
-                    const Text('הדגשת קטעים בפרשנים הקשורים לשורה שנבחרה'),
+                    Text(context.tr('הדגשת קטעים בפרשנים הקשורים לשורה שנבחרה')),
                 value: _highlightRelatedCommentators,
                 onChanged: (value) {
                   setState(() {
@@ -910,12 +910,12 @@ class _CommentatorPickerDialogState extends State<_CommentatorPickerDialog> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('ביטול'),
+                    child: Text(context.tr('ביטול')),
                   ),
                   const SizedBox(width: 8),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop('__NONE__'),
-                    child: const Text('ללא מפרש'),
+                    child: Text(context.tr('ללא מפרש')),
                   ),
                 ],
               ),

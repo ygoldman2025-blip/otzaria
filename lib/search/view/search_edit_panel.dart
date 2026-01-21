@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:flutter/services.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -351,7 +352,7 @@ class _SearchEditPanelState extends State<SearchEditPanel> {
                   ElevatedButton.icon(
                     onPressed: _performSearch,
                     icon: const Icon(FluentIcons.search_24_regular),
-                    label: const Text('חפש'),
+                    label: Text(context.tr('חפש')),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,

@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:otzaria/services/ad_popup_service.dart';
 
 /// פופאפ פרסומת עם אנימציה מתקדמת
@@ -380,7 +382,7 @@ class _AdPopupDialogState extends State<AdPopupDialog>
                 side: BorderSide(color: Colors.grey.shade400),
               ),
               icon: const Icon(Icons.close, size: 18),
-              label: const Text('אל תציג שוב'),
+              label: Text(context.tr('אל תציג שוב')),
             ),
           ),
         ),

@@ -179,7 +179,7 @@ class _ReadingScreenState extends State<ReadingScreen>
                     ),
                     titleSpacing: 0,
                     centerTitle: true,
-                    title: const Text('עיון'),
+                    title: Text(context.tr('עיון')),
                     actions: [
                       // כפתור מסך מלא
                       BlocBuilder<SettingsBloc, SettingsState>(
@@ -233,7 +233,7 @@ class _ReadingScreenState extends State<ReadingScreen>
                                   );
                             },
                             icon: const Icon(FluentIcons.library_24_regular),
-                            label: const Text('דפדף בספרייה'),
+                            label: Text(context.tr('דפדף בספרייה')),
                           ),
                         ),
                       ],
@@ -519,14 +519,14 @@ class _ReadingScreenState extends State<ReadingScreen>
                 label: Text(context.tr('close_')),
                 onSelected: (_) => closeTab(tab, context)),
             MenuItem(
-                label: const Text('סגור הכל'),
+                label: Text(context.tr('סגור הכל')),
                 onSelected: (_) => closeAllTabs(state, context)),
             MenuItem(
-              label: const Text('סגור את האחרים'),
+              label: Text(context.tr('סגור את האחרים')),
               onSelected: (_) => closeAllTabsButCurrent(state, context),
             ),
             MenuItem(
-              label: const Text('שיכפול'),
+              label: Text(context.tr('שיכפול')),
               onSelected: (_) => context.read<TabsBloc>().add(CloneTab(tab)),
             ),
             const MenuDivider(),
@@ -534,7 +534,7 @@ class _ReadingScreenState extends State<ReadingScreen>
             if (tab is! CombinedTab)
               if (state.tabs.length > 1)
                 MenuItem.submenu(
-                  label: const Text('הצג לצד'),
+                  label: Text(context.tr('הצג לצד')),
                   items: state.tabs
                       .where((t) => t != tab && t is! CombinedTab)
                       .map((otherTab) => MenuItem(
@@ -552,32 +552,32 @@ class _ReadingScreenState extends State<ReadingScreen>
                 )
               else
                 MenuItem(
-                  label: const Text('הצג לצד'),
+                  label: Text(context.tr('הצג לצד')),
                   enabled: false,
                   onSelected: (_) {},
                 ),
             // אפשרויות לטאב משולב
             if (tab is CombinedTab) ...[
               MenuItem(
-                label: const Text('החלף צדדים'),
+                label: Text(context.tr('החלף צדדים')),
                 onSelected: (_) =>
                     context.read<TabsBloc>().add(const SwapSideBySideTabs()),
               ),
               MenuItem(
-                label: const Text('חזרה לתצוגה רגילה'),
+                label: Text(context.tr('חזרה לתצוגה רגילה')),
                 onSelected: (_) =>
                     context.read<TabsBloc>().add(const DisableSideBySideMode()),
               ),
             ],
             const MenuDivider(),
             MenuItem(
-              label: const Text('העתק קישור לספר זה'),
+              label: Text(context.tr('העתק קישור לספר זה')),
               onSelected: (_) => _shareBookLink(tab),
             ),
             const MenuDivider(),
             // הוסרת אפשרות הצמדה לדף הבית לאחר הסרת דף הבית
             MenuItem.submenu(
-              label: const Text('רשימת הכרטיסיות '),
+              label: Text(context.tr('רשימת הכרטיסיות ')),
               items: _getMenuItems(state.tabs, context),
             )
           ],

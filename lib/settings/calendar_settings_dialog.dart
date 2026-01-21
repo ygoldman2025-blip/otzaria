@@ -62,7 +62,7 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
       bloc: widget.calendarCubit,
       builder: (context, state) {
         return AlertDialog(
-          title: const Text('הגדרות לוח שנה'),
+          title: Text(context.tr('הגדרות לוח שנה')),
           content: SizedBox(
             width: 400,
             child: SingleChildScrollView(
@@ -161,7 +161,7 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   SwitchListTile(
-                    title: const Text('הפעל התראות על אירועים'),
+                    title: Text(context.tr('הפעל התראות על אירועים')),
                     value: state.calendarNotificationsEnabled,
                     onChanged: (value) {
                       widget.calendarCubit
@@ -175,7 +175,7 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           SwitchListTile(
-                            title: const Text('השמע צליל בהתראה'),
+                            title: Text(context.tr('השמע צליל בהתראה')),
                             value: state.calendarNotificationSound,
                             onChanged: (value) {
                               widget.calendarCubit
