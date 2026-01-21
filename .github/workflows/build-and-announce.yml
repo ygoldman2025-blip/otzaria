@@ -3,7 +3,6 @@ name: "Build, Release and Announce"
 permissions:
   contents: write
 
-on:
   workflow_dispatch:
 
   # טריגר לפרסום בלבד
