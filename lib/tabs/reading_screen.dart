@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:otzaria/localization/localization_extension.dart';
+import 'package:otzaria/localization/localizable_screen_mixin.dart';
 import 'package:flutter/services.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -57,7 +58,7 @@ final ButtonStyle _kIconButtonStyle = IconButton.styleFrom(
 );
 
 class _ReadingScreenState extends State<ReadingScreen>
-    with TickerProviderStateMixin, WidgetsBindingObserver {
+    with TickerProviderStateMixin, WidgetsBindingObserver , LocalizableScreenMixin<ReadingScreen> {
   // האם יש אוברפלואו בטאבים (גלילה)? משמש לקביעת placeholder לדינמיות מרכוז/התפרשות
   bool _tabsOverflow = false;
   @override
@@ -91,7 +92,7 @@ class _ReadingScreenState extends State<ReadingScreen>
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget buildScreen(BuildContext context, SettingsState settingsState) {
     return MultiBlocListener(
       listeners: [
         BlocListener<TabsBloc, TabsState>(
@@ -923,7 +924,7 @@ class _SideBySideViewWidget extends StatefulWidget {
   State<_SideBySideViewWidget> createState() => _SideBySideViewWidgetState();
 }
 
-class _SideBySideViewWidgetState extends State<_SideBySideViewWidget> {
+class _SideBySideViewWidgetState extends State<_SideBySideViewWidget> with LocalizableScreenMixin<_SideBySideViewWidget> {
   late double _splitRatio;
 
   @override
@@ -944,7 +945,7 @@ class _SideBySideViewWidgetState extends State<_SideBySideViewWidget> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget buildScreen(BuildContext context, SettingsState settingsState) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final totalWidth = constraints.maxWidth;

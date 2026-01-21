@@ -1,5 +1,7 @@
+import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:otzaria/localization/localization_extension.dart';
+import 'package:otzaria/localization/localizable_screen_mixin.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/text_book/bloc/text_book_bloc.dart';
@@ -137,7 +139,9 @@ class CommentatorsListViewState extends State<CommentatorsListView> {
   }
 
   @override
-  Widget build(BuildContext context) {
+
+
+  Widget buildScreen(BuildContext context, SettingsState settingsState) {
     return TextBookStateBuilder(
       loadingWidget: const Center(),
       builder: (context, state) {

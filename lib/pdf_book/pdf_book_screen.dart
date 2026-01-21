@@ -1,4 +1,9 @@
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:io';
+
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:otzaria/localization/localizable_screen_mixin.dart';
+import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:otzaria/localization/localization_extension.dart';
 import 'dart:math';
 import 'package:otzaria/localization/localization_extension.dart';
@@ -58,7 +63,7 @@ class PdfBookScreen extends StatefulWidget {
 }
 
 class _PdfBookScreenState extends State<PdfBookScreen>
-    with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
+    with AutomaticKeepAliveClientMixin, TickerProviderStateMixin, LocalizableScreenMixin<PdfBookScreen> {
   @override
   bool get wantKeepAlive => true;
 
@@ -385,7 +390,7 @@ class _PdfBookScreenState extends State<PdfBookScreen>
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget buildScreen(BuildContext context, SettingsState settingsState) {
     super.build(context);
     return LayoutBuilder(builder: (context, constrains) {
       final wideScreen = (MediaQuery.of(context).size.width >= 600);

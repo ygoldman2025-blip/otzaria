@@ -8,6 +8,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/localization/localization_extension.dart';
+import 'package:otzaria/localization/localizable_screen_mixin.dart';
 import 'package:otzaria/indexing/bloc/indexing_bloc.dart';
 import 'package:otzaria/indexing/bloc/indexing_event.dart';
 import 'package:otzaria/indexing/bloc/indexing_state.dart';
@@ -40,7 +41,7 @@ class MySettingsScreen extends StatefulWidget {
 }
 
 class _MySettingsScreenState extends State<MySettingsScreen>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin , LocalizableScreenMixin<MySettingsScreen> {
   @override
   bool get wantKeepAlive => true;
 
@@ -218,7 +219,7 @@ class _MySettingsScreenState extends State<MySettingsScreen>
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget buildScreen(BuildContext context, SettingsState settingsState) {
     super.build(context);
     const Map<String, String> shortcuctsList = {
       'ctrl+a': 'CTRL + A',
@@ -891,7 +892,7 @@ class MarginSliderPreview extends StatefulWidget {
   State<MarginSliderPreview> createState() => _MarginSliderPreviewState();
 }
 
-class _MarginSliderPreviewState extends State<MarginSliderPreview> {
+class _MarginSliderPreviewState extends State<MarginSliderPreview> with LocalizableScreenMixin<MarginSliderPreview> {
   late double _margin;
   bool _showPreview = false;
   Timer? _disappearTimer;
@@ -968,7 +969,7 @@ class _MarginSliderPreviewState extends State<MarginSliderPreview> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget buildScreen(BuildContext context, SettingsState settingsState) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final fullWidth = constraints.maxWidth;
@@ -1147,7 +1148,7 @@ class _SettingsTile extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget buildScreen(BuildContext context, SettingsState settingsState) {
     return Material(
       child: Column(
         children: [
@@ -1187,7 +1188,7 @@ class _BackupSettingsSection extends StatefulWidget {
   State<_BackupSettingsSection> createState() => _BackupSettingsSectionState();
 }
 
-class _BackupSettingsSectionState extends State<_BackupSettingsSection> {
+class _BackupSettingsSectionState extends State<_BackupSettingsSection> with LocalizableScreenMixin<_BackupSettingsSection> {
   // מפתחות הגדרות גיבוי
   static const _keyBackupSettings = 'key-backup-settings';
   static const _keyBackupBookmarks = 'key-backup-bookmarks';
@@ -1463,7 +1464,7 @@ class _BackupSettingsSectionState extends State<_BackupSettingsSection> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget buildScreen(BuildContext context, SettingsState settingsState) {
     final primaryColor = Theme.of(context).colorScheme.primary;
     final cardColor = Theme.of(context).cardColor;
 

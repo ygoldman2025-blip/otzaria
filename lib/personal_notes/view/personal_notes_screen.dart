@@ -89,66 +89,68 @@ class _PersonalNotesManagerScreenState
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoadingBooks) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_booksError != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'אירעה שגיאה בעת טעינת רשימת ההערות:\n${_booksError!}',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: _loadBooks,
-              child: Text(context.tr('נסה שוב')),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_books.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(context.tr('לא נמצאו הערות אישיות')),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: _loadBooks,
-              child: Text(context.tr('רענון')),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return BlocListener<PersonalNotesBloc, PersonalNotesState>(
-      listener: (context, state) {
-        // Store the state for each book and trigger rebuild
-        if (state.bookId != null) {
-          setState(() {
-            _bookStates[state.bookId!] = state;
-          });
-
-          // If this is a new book (not in _books list), refresh the books list
-          final bookExists = _books.any((book) => book.bookId == state.bookId);
-          if (!bookExists &&
-              (state.locatedNotes.isNotEmpty ||
-                  state.missingNotes.isNotEmpty)) {
-            _loadBooks();
-          }
+    return BlocBuilder<SettingsBloc, SettingsState>(
+      builder: (context, settingsState) {
+        if (_isLoadingBooks) {
+          return const Center(child: CircularProgressIndicator());
         }
-      },
-      child: Column(
-        children: [
-          // שורת כלים עליונה לכל רוחב העמוד
-          _buildTopBar(),
+
+        if (_booksError != null) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'אירעה שגיאה בעת טעינת רשימת ההערות:\n${_booksError!}',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: _loadBooks,
+                  child: Text(context.tr('נסה שוב')),
+                ),
+              ],
+            ),
+          );
+        }
+
+        if (_books.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(context.tr('לא נמצאו הערות אישיות')),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: _loadBooks,
+                  child: Text(context.tr('רענון')),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return BlocListener<PersonalNotesBloc, PersonalNotesState>(
+          listener: (context, state) {
+            // Store the state for each book and trigger rebuild
+            if (state.bookId != null) {
+              setState(() {
+                _bookStates[state.bookId!] = state;
+              });
+
+              // If this is a new book (not in _books list), refresh the books list
+              final bookExists = _books.any((book) => book.bookId == state.bookId);
+              if (!bookExists &&
+                  (state.locatedNotes.isNotEmpty ||
+                      state.missingNotes.isNotEmpty)) {
+                _loadBooks();
+              }
+            }
+          },
+          child: Column(
+            children: [
+              // שורת כלים עליונה לכל רוחב העמוד
+              _buildTopBar(),
           Divider(height: 1, color: Colors.grey.withValues(alpha: 0.3)),
           // תוכן העמוד
           Expanded(
@@ -180,6 +182,9 @@ class _PersonalNotesManagerScreenState
           ),
         ],
       ),
+          ),
+        );
+      },
     );
   }
 

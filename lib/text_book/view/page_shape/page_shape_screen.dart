@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:otzaria/localization/localization_extension.dart';
+import 'package:otzaria/localization/localizable_screen_mixin.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/constants/fonts.dart';
 import 'package:otzaria/text_book/bloc/text_book_bloc.dart';
@@ -39,7 +40,7 @@ class PageShapeScreen extends StatefulWidget {
   State<PageShapeScreen> createState() => _PageShapeScreenState();
 }
 
-class _PageShapeScreenState extends State<PageShapeScreen> {
+class _PageShapeScreenState extends State<PageShapeScreen> with LocalizableScreenMixin<PageShapeScreen> {
   String? _leftCommentator;
   String? _rightCommentator;
   String? _bottomCommentator;
@@ -217,7 +218,7 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget buildScreen(BuildContext context, SettingsState settingsState) {
     if (_isLoadingConfig) {
       return const Scaffold(
         body: LoadingIndicator(),
@@ -489,7 +490,7 @@ class _CommentaryPane extends StatefulWidget {
   State<_CommentaryPane> createState() => _CommentaryPaneState();
 }
 
-class _CommentaryPaneState extends State<_CommentaryPane> {
+class _CommentaryPaneState extends State<_CommentaryPane> with LocalizableScreenMixin<_CommentaryPane> {
   List<String>? _content;
   bool _isLoading = true;
   final ItemScrollController _scrollController = ItemScrollController();
@@ -690,7 +691,7 @@ class _CommentaryPaneState extends State<_CommentaryPane> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget buildScreen(BuildContext context, SettingsState settingsState) {
     if (_isLoading) {
       return Container(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -762,7 +763,7 @@ class _HorizontalDragHandle extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget buildScreen(BuildContext context, SettingsState settingsState) {
     Widget buildDividerLine(double? width) {
       return SizedBox(
         width: (width ??

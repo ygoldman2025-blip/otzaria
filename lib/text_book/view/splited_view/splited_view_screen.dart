@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:otzaria/localization/localization_extension.dart';
+import 'package:otzaria/localization/localizable_screen_mixin.dart';
 import 'package:flutter/services.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -44,7 +45,7 @@ class SplitedViewScreen extends StatefulWidget {
   State<SplitedViewScreen> createState() => _SplitedViewScreenState();
 }
 
-class _SplitedViewScreenState extends State<SplitedViewScreen> {
+class _SplitedViewScreenState extends State<SplitedViewScreen> with LocalizableScreenMixin<SplitedViewScreen> {
   // קבועים לאינדקסים של הטאבים
   static const int _commentaryTabIndex = 0;
   static const int _linksTabIndex = 1;
@@ -218,7 +219,9 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+
+
+  Widget buildScreen(BuildContext context, SettingsState settingsState) {
     return BlocListener<TextBookBloc, TextBookState>(
       listenWhen: (previous, current) {
         // האזן רק אם הוספנו מפרשים (לא אם הסרנו)

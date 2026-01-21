@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:otzaria/localization/localization_extension.dart';
+import 'package:otzaria/localization/localizable_screen_mixin.dart';
 import 'package:flutter/services.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -53,7 +54,7 @@ class CombinedView extends StatefulWidget {
   State<CombinedView> createState() => _CombinedViewState();
 }
 
-class _CombinedViewState extends State<CombinedView> {
+class _CombinedViewState extends State<CombinedView> with LocalizableScreenMixin<CombinedView> {
   // שמירת הטקסט הנבחר האחרון
   String? _savedSelectedText;
   // שמירת האינדקס של השורה שממנה הטקסט הודגש
@@ -892,7 +893,7 @@ $textWithBreaks
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget buildScreen(BuildContext context, SettingsState settingsState) {
     return BlocListener<TextBookBloc, TextBookState>(
       listener: (context, state) {
         if (state is TextBookLoaded && 
@@ -1023,11 +1024,11 @@ class _CommentaryCard extends StatefulWidget {
   State<_CommentaryCard> createState() => _CommentaryCardState();
 }
 
-class _CommentaryCardState extends State<_CommentaryCard> {
+class _CommentaryCardState extends State<_CommentaryCard> with LocalizableScreenMixin<_CommentaryCard> {
   final GlobalKey<CommentaryListBaseState> _commentaryKey = GlobalKey();
 
   @override
-  Widget build(BuildContext context) {
+  Widget buildScreen(BuildContext context, SettingsState settingsState) {
     // חישוב גובה המפרשים לפי גובה הבלוק בפועל (לא כל המסך):
     // המפרשים יהיו 75% מגובה הבלוק
     // השאר (25%) יתחלק: 15% למעלה (טקסט), 10% למטה (טקסט)

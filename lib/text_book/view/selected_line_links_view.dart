@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:otzaria/localization/localization_extension.dart';
+import 'package:otzaria/localization/localizable_screen_mixin.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
@@ -36,7 +37,7 @@ class SelectedLineLinksView extends StatefulWidget {
   State<SelectedLineLinksView> createState() => _SelectedLineLinksViewState();
 }
 
-class _SelectedLineLinksViewState extends State<SelectedLineLinksView> {
+class _SelectedLineLinksViewState extends State<SelectedLineLinksView> with LocalizableScreenMixin<SelectedLineLinksView> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   final Map<String, Future<String>> _contentCache = {};
@@ -54,7 +55,7 @@ class _SelectedLineLinksViewState extends State<SelectedLineLinksView> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget buildScreen(BuildContext context, SettingsState settingsState) {
     return TextBookStateBuilder(
       builder: (context, state) {
         return Column(
