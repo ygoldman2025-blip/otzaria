@@ -763,7 +763,7 @@ class _HorizontalDragHandle extends StatelessWidget {
   });
 
   @override
-  Widget buildScreen(BuildContext context, SettingsState settingsState) {
+  Widget build(BuildContext context) {
     Widget buildDividerLine(double? width) {
       return SizedBox(
         width: (width ??

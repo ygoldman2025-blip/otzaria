@@ -27,7 +27,8 @@ class CommentatorsListView extends StatefulWidget {
   State<CommentatorsListView> createState() => CommentatorsListViewState();
 }
 
-class CommentatorsListViewState extends State<CommentatorsListView> {
+class CommentatorsListViewState extends State<CommentatorsListView>
+    with LocalizableScreenMixin {
   TextEditingController searchController = TextEditingController();
   List<String> selectedTopics = [];
   List<String> commentatorsList = [];
