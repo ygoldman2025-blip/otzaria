@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:otzaria/data/data_providers/tantivy_data_provider.dart';
 import 'package:otzaria/data/repository/data_repository.dart';
+import 'package:otzaria/utils/book_abbreviations.dart';
 import 'package:otzaria/utils/text_manipulation.dart';
 import 'package:search_engine/search_engine.dart';
 
@@ -10,7 +11,11 @@ class FindRefRepository {
   FindRefRepository({required this.dataRepository});
 
   Future<List<ReferenceSearchResult>> findRefs(String ref) async {
-    final cleanedQuery = _normalizeForMatch(ref);
+    // הרחבת קיצורים בשאילתה
+    final expandedRef = BookAbbreviations.expandAbbreviations(ref);
+    debugPrint('[FindRef] Original: $ref -> Expanded: $expandedRef');
+    
+    final cleanedQuery = _normalizeForMatch(expandedRef);
     if (cleanedQuery.isEmpty) {
       return const [];
     }
@@ -19,12 +24,13 @@ class FindRefRepository {
     if (queryTokens.isEmpty) {
       return const [];
     }
+    
+    debugPrint('[FindRef] Query tokens: ${queryTokens.join(' ')}');
 
     // שלב 1: שלוף יותר תוצאות מהרגיל כדי לפצות על אלו שיסוננו
-    // שולחים את השאילתה המקורית ל-Tantivy (ללא עיבוד)
-    // הסינון והדירוג יתבצעו בצד שלנו
+    // שולחים את השאילתה המורחבת ל-Tantivy
     final rawResults = await TantivyDataProvider.instance.searchRefs(
-      ref,
+      expandedRef,
       300,
       false,
     );
