@@ -19,6 +19,7 @@ import 'package:otzaria/models/books.dart';
 import 'package:otzaria/widgets/rtl_text_field.dart';
 import 'package:otzaria/widgets/resizable_drag_handle.dart';
 import 'package:otzaria/settings/settings_bloc.dart';
+import 'package:otzaria/settings/settings_state.dart';
 
 class PersonalNotesManagerScreen extends StatefulWidget {
   const PersonalNotesManagerScreen({super.key});

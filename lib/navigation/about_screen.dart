@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -10,6 +9,7 @@ import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:path/path.dart' as p;
 import '../settings/settings_repository.dart';
 import '../settings/settings_bloc.dart';
+import '../settings/settings_state.dart';
 import '../localization/localization_extension.dart';
 import '../services/data_collection_service.dart';
 import '../widgets/ad_popup_dialog.dart';
