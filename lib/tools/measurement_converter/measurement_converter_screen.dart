@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/services.dart';
 import 'measurement_data.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 // START OF ADDITIONS - MODERN UNITS
 const List<String> modernLengthUnits = ['מ"מ', 'ס"מ', 'מטר', 'ק"מ'];
@@ -117,16 +118,15 @@ class _MeasurementConverterScreenState
         _selectedOpinion = _opinions[_selectedCategory]?.first;
       }
 
-      // Restore remembered input value or clear
-      _inputController.text = _rememberedInputValues[_selectedCategory] ?? '';
+      // Restore remembered input value or use default '1'
+      _inputController.text = _rememberedInputValues[_selectedCategory] ?? '1';
       _resultController.clear();
 
       // Update result field visibility based on input
       _showResultField = _inputController.text.isNotEmpty;
 
-      // Convert if there's a remembered input value
-      if (_rememberedInputValues[_selectedCategory] != null &&
-          _rememberedInputValues[_selectedCategory]!.isNotEmpty) {
+      // Convert if there's input
+      if (_inputController.text.isNotEmpty) {
         _convert();
       }
     });
@@ -1144,7 +1144,7 @@ class _MeasurementConverterScreenState
   }
 
   Widget _buildInputField() {
-    return TextField(
+    return RtlTextField(
       controller: _inputController,
       focusNode: _inputFocusNode,
       style: const TextStyle(fontSize: 16.0),
@@ -1189,22 +1189,20 @@ class _MeasurementConverterScreenState
         }
         _convert();
       },
-      textDirection: TextDirection.ltr,
       textAlign: TextAlign.right,
     );
   }
 
   Widget _buildResultDisplay() {
-    return TextField(
+    return RtlTextField(
       controller: _resultController,
-      readOnly: true,
+      enabled: false,
       decoration: const InputDecoration(
         labelText: 'תוצאה',
         border: OutlineInputBorder(),
         contentPadding: EdgeInsets.symmetric(horizontal: 12.0, vertical: 16.0),
       ),
       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-      textDirection: TextDirection.ltr,
       textAlign: TextAlign.right,
     );
   }

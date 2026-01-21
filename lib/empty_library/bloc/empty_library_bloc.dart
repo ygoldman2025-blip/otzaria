@@ -11,6 +11,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:otzaria/empty_library/bloc/empty_library_event.dart';
 import 'package:otzaria/empty_library/bloc/empty_library_state.dart';
+import 'package:otzaria/settings/settings_repository.dart';
 
 class EmptyLibraryBloc extends Bloc<EmptyLibraryEvent, EmptyLibraryState> {
   StreamSubscription? _downloadSubscription;
@@ -64,7 +65,7 @@ class EmptyLibraryBloc extends Bloc<EmptyLibraryEvent, EmptyLibraryState> {
 
   Future<void> _onPickAndExtractZipRequested(
       PickAndExtractZipRequested event, Emitter<EmptyLibraryState> emit) async {
-    final libraryPath = Settings.getValue<String>('key-library-path') ?? '';
+    final libraryPath = Settings.getValue<String>(SettingsRepository.keyLibraryPath) ?? '';
     if (libraryPath.isEmpty) {
       emit(const EmptyLibraryError(errorMessage: 'נא לבחור תיקייה תחילה'));
       return;
@@ -124,7 +125,7 @@ class EmptyLibraryBloc extends Bloc<EmptyLibraryEvent, EmptyLibraryState> {
         downloadSpeed: 0,
         currentOperation: 'מתחיל הורדה...'));
 
-    final libraryPath = Settings.getValue<String>('key-library-path') ?? '';
+    final libraryPath = Settings.getValue<String>(SettingsRepository.keyLibraryPath) ?? '';
     if (libraryPath.isEmpty) {
       emit(const EmptyLibraryError(errorMessage: 'נא לבחור תיקייה תחילה'));
       emit(EmptyLibraryInitial());
@@ -161,7 +162,7 @@ class EmptyLibraryBloc extends Bloc<EmptyLibraryEvent, EmptyLibraryState> {
       final request = http.Request(
         'GET',
         Uri.parse(
-            'https://github.com/Y-PLONI/otzaria-library/releases/download/latest/otzaria_latest.zip'),
+            'https://github.com/Y-PLONI/otzaria-library/releases/latest/download/otzaria_latest.zip'),
       );
       final response = await http.Client().send(request);
 
@@ -218,9 +219,8 @@ class EmptyLibraryBloc extends Bloc<EmptyLibraryEvent, EmptyLibraryState> {
 
             Future<void> extractWithArchive() async {
               // Create extractor with memory-efficient settings
-              final extractor = ZipDecoder();
-              final inputStream = InputFileStream(_tempFile!.path);
-              final archive = extractor.decodeBuffer(inputStream);
+              final bytes = await _tempFile!.readAsBytes();
+              final archive = ZipDecoder().decodeBytes(bytes);
               final totalFiles = archive.files.length;
               var extractedFiles = 0;
 
@@ -240,9 +240,7 @@ class EmptyLibraryBloc extends Bloc<EmptyLibraryEvent, EmptyLibraryState> {
                     if (file.isFile) {
                       final outputFile = File(filePath);
                       await outputFile.parent.create(recursive: true);
-                      final outputStream = OutputFileStream(outputFile.path);
-                      file.writeContent(outputStream);
-                      outputStream.close();
+                      await outputFile.writeAsBytes(file.content as List<int>);
                     } else {
                       await Directory(filePath).create(recursive: true);
                     }
@@ -253,8 +251,6 @@ class EmptyLibraryBloc extends Bloc<EmptyLibraryEvent, EmptyLibraryState> {
                   }
                 }
               }
-
-              inputStream.close();
             }
 
             Future<void> extractWithFlutterArchive() async {
@@ -326,7 +322,7 @@ class EmptyLibraryBloc extends Bloc<EmptyLibraryEvent, EmptyLibraryState> {
         downloadedMB: 0,
         downloadSpeed: 0,
         currentOperation: ''));
-    Settings.setValue('key-library-path', selectedDirectory);
+    Settings.setValue(SettingsRepository.keyLibraryPath, selectedDirectory);
     emit(
         EmptyLibraryDownloaded()); // Or maybe a different state like DirectorySelected?
   }

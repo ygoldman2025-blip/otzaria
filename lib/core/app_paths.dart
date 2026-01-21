@@ -3,6 +3,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
+import 'package:otzaria/settings/settings_repository.dart';
 
 /// Utility class for managing application paths.
 /// Centralizes path construction logic to avoid duplication.
@@ -10,7 +11,7 @@ class AppPaths {
   /// Gets the main library path from settings. Defaults to 'C:/אוצריא' for Windows if not set.
   static Future<String> getLibraryPath() async {
     // Check existing library path setting
-    final currentPath = Settings.getValue('key-library-path');
+    final currentPath = Settings.getValue(SettingsRepository.keyLibraryPath);
 
     if (currentPath != null) {
       return currentPath;
@@ -34,7 +35,7 @@ class AppPaths {
       libraryPath = (await getApplicationSupportDirectory()).path;
     }
 
-    await Settings.setValue('key-library-path', libraryPath);
+    await Settings.setValue(SettingsRepository.keyLibraryPath, libraryPath);
     return libraryPath;
   }
 
@@ -71,17 +72,27 @@ class AppPaths {
   }
 
   /// Creates necessary directories for the application
+  /// Note: Does NOT create the library path itself - only index directories
+  /// The library path should be created by the user or during library download
   static Future<void> createNecessaryDirectories() async {
-    final dirs = [
-      await getLibraryPath(),
-      await getIndexPath(),
-      await getRefIndexPath(),
-    ];
+    // רק ניצור את תיקיות האינדקס, לא את תיקיית הספרייה עצמה
+    // תיקיית הספרייה תיווצר רק כשמורידים ספרייה או כשהמשתמש בוחר תיקייה קיימת
+    final libraryPath = await getLibraryPath();
+    final libraryDir = Directory(libraryPath);
+    
+    // אם תיקיית הספרייה לא קיימת, לא ניצור אותה
+    // רק נוודא שתיקיות האינדקס קיימות אם תיקיית הספרייה קיימת
+    if (await libraryDir.exists()) {
+      final dirs = [
+        await getIndexPath(),
+        await getRefIndexPath(),
+      ];
 
-    for (final dirPath in dirs) {
-      final directory = Directory(dirPath);
-      if (!await directory.exists()) {
-        await directory.create(recursive: true);
+      for (final dirPath in dirs) {
+        final directory = Directory(dirPath);
+        if (!await directory.exists()) {
+          await directory.create(recursive: true);
+        }
       }
     }
   }

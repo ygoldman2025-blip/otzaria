@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/empty_library/bloc/empty_library_bloc.dart';
@@ -61,7 +62,7 @@ class _EmptyLibraryView extends StatelessWidget {
           style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           textAlign: TextAlign.center,
         ),
-        if (!Platform.isAndroid && !Platform.isIOS) const SizedBox(height: 32),
+        const SizedBox(height: 32),
         if (state.selectedPath != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 16),
@@ -72,22 +73,23 @@ class _EmptyLibraryView extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
           ),
-        if (!Platform.isAndroid && !Platform.isIOS)
-          ElevatedButton(
-            onPressed: state.isDownloading
-                ? null
-                : () => BlocProvider.of<EmptyLibraryBloc>(context)
-                    .add(PickDirectoryRequested()),
-            child: const Text('בחר תיקייה'),
-          ),
+        ElevatedButton.icon(
+          onPressed: state.isDownloading
+              ? null
+              : () => BlocProvider.of<EmptyLibraryBloc>(context)
+                  .add(PickDirectoryRequested()),
+          icon: const Icon(FluentIcons.folder_open_24_regular),
+          label: Text(context.tr('בחר תיקייה')),
+        ),
         const SizedBox(height: 32),
         if (Platform.isAndroid)
-          ElevatedButton(
+          ElevatedButton.icon(
             onPressed: state.isDownloading
                 ? null
                 : () => BlocProvider.of<EmptyLibraryBloc>(context)
                     .add(PickAndExtractZipRequested()),
-            child: const Text('בחר קובץ ZIP מהמכשיר'),
+            icon: const Icon(FluentIcons.folder_zip_24_regular),
+            label: Text(context.tr('בחר קובץ ZIP מהמכשיר')),
           ),
         const Text(
           'או',
@@ -97,12 +99,13 @@ class _EmptyLibraryView extends StatelessWidget {
         if (state.isDownloading) ...[
           _DownloadProgress(state: state),
         ] else
-          ElevatedButton(
+          ElevatedButton.icon(
             onPressed: state.isDownloading
                 ? null
                 : () => BlocProvider.of<EmptyLibraryBloc>(context)
                     .add(DownloadLibraryRequested()),
-            child: const Text('הורד את הספרייה מהאינטרנט (1.2GB)'),
+            icon: const Icon(FluentIcons.arrow_download_24_regular),
+            label: Text(context.tr('הורד את הספרייה מהאינטרנט (1.5GB)')),
           ),
       ],
     );

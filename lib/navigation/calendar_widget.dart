@@ -1,16 +1,41 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_spinbox/flutter_spinbox.dart';
 import 'package:kosher_dart/kosher_dart.dart';
 import 'calendar_cubit.dart';
 import 'package:otzaria/daf_yomi/daf_yomi_helper.dart';
 import 'package:otzaria/core/scaffold_messenger.dart';
 import 'package:otzaria/settings/calendar_settings_dialog.dart';
-import 'package:otzaria/widgets/confirmation_dialog.dart';
+import 'package:otzaria/settings/settings_repository.dart';
+import 'package:otzaria/widgets/dialogs.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_settings_screens/flutter_settings_screens.dart';
+import 'dart:io';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 // הפכנו את הווידג'ט ל-Stateless כי הוא כבר לא מנהל מצב בעצמו.
 class CalendarWidget extends StatelessWidget {
   const CalendarWidget({super.key});
+
+  Future<_ZmanAlertDialogResult?> _showZmanAlertDialog(
+    BuildContext context, {
+    required String zmanName,
+    required String timeLabel,
+    required int initialMinutesBefore,
+    required bool isEnabled,
+  }) {
+    return showDialog<_ZmanAlertDialogResult>(
+      context: context,
+      builder: (context) => _ZmanAlertDialog(
+        zmanName: zmanName,
+        timeLabel: timeLabel,
+        initialMinutesBefore: initialMinutesBefore,
+        isEnabled: isEnabled,
+      ),
+    );
+  }
 
   // העברנו את רשימות הקבועים לכאן כדי שיהיו זמינים
   final List<String> hebrewMonths = const [
@@ -186,12 +211,12 @@ class CalendarWidget extends StatelessWidget {
               children: [
                 ElevatedButton(
                   onPressed: () => context.read<CalendarCubit>().jumpToToday(),
-                  child: const Text('היום'),
+                  child: Text(context.tr('היום')),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: () => _showJumpToDateDialog(context),
-                  child: const Text('עבור לתאריך'),
+                  child: Text(context.tr('עבור לתאריך')),
                 ),
               ],
             ),
@@ -316,35 +341,60 @@ class CalendarWidget extends StatelessWidget {
           width: 2,
         ),
       ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              hebrewDays[state.selectedGregorianDate.weekday % 7],
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+      child: Stack(
+        children: [
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  hebrewDays[state.selectedGregorianDate.weekday % 7],
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${_formatHebrewDay(state.selectedJewishDate.getJewishDayOfMonth())} ${_getHebrewMonthNameFor(state.selectedJewishDate)}',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${state.selectedGregorianDate.day} ${_getGregorianMonthName(state.selectedGregorianDate.month)} ${state.selectedGregorianDate.year}',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // כפתור הוספת אירוע
+          Positioned(
+            top: 8,
+            left: 8,
+            child: Tooltip(
+              message: 'צור אירוע',
+              child: IconButton.filled(
+                icon: const Icon(FluentIcons.add_24_regular, size: 16),
+                onPressed: () => _showCreateEventDialog(context, state),
+                style: IconButton.styleFrom(
+                  minimumSize: const Size(24, 24),
+                  backgroundColor:
+                      Theme.of(context).colorScheme.primaryContainer,
+                  foregroundColor:
+                      Theme.of(context).colorScheme.onPrimaryContainer,
+                  visualDensity: VisualDensity.compact,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              '${_formatHebrewDay(state.selectedJewishDate.getJewishDayOfMonth())} ${_getHebrewMonthNameFor(state.selectedJewishDate)}',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${state.selectedGregorianDate.day} ${_getGregorianMonthName(state.selectedGregorianDate.month)} ${state.selectedGregorianDate.year}',
-              style: TextStyle(
-                fontSize: 16,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -368,20 +418,43 @@ class CalendarWidget extends StatelessWidget {
     );
     final startingWeekday = firstDayOfMonth.getGregorianCalendar().weekday % 7;
 
-    List<Widget> dayWidgets =
-        List.generate(startingWeekday, (_) => const SizedBox());
+    List<Widget> dayWidgets = [];
 
+    // הוסף תאריכים מהחודש הקודם
+    if (startingWeekday > 0) {
+      final previousMonth = JewishDate();
+      previousMonth.setJewishDate(
+        currentJewishDate.getJewishYear(),
+        currentJewishDate.getJewishMonth(),
+        1,
+      );
+      previousMonth.back();
+      final daysInPreviousMonth = previousMonth.getDaysInJewishMonth();
+
+      for (int i = startingWeekday - 1; i >= 0; i--) {
+        final day = daysInPreviousMonth - i;
+        dayWidgets.add(_buildHebrewDayCell(context, state, day,
+            isFromOtherMonth: true, monthOffset: -1));
+      }
+    }
+
+    // הוסף תאריכים מהחודש הנוכחי
     for (int day = 1; day <= daysInMonth; day++) {
       dayWidgets.add(_buildHebrewDayCell(context, state, day));
+    }
+
+    // הוסף תאריכים מהחודש הבא
+    final totalCells = ((dayWidgets.length / 7).ceil()) * 7;
+    final remainingCells = totalCells - dayWidgets.length;
+    for (int day = 1; day <= remainingCells; day++) {
+      dayWidgets.add(_buildHebrewDayCell(context, state, day,
+          isFromOtherMonth: true, monthOffset: 1));
     }
 
     List<Widget> rows = [];
     for (int i = 0; i < dayWidgets.length; i += 7) {
       final rowWidgets = dayWidgets.sublist(
           i, i + 7 > dayWidgets.length ? dayWidgets.length : i + 7);
-      while (rowWidgets.length < 7) {
-        rowWidgets.add(const SizedBox());
-      }
       rows.add(
           Row(children: rowWidgets.map((w) => Expanded(child: w)).toList()));
     }
@@ -399,20 +472,38 @@ class CalendarWidget extends StatelessWidget {
     final daysInMonth = lastDayOfMonth.day;
     final startingWeekday = firstDayOfMonth.weekday % 7;
 
-    List<Widget> dayWidgets =
-        List.generate(startingWeekday, (_) => const SizedBox());
+    List<Widget> dayWidgets = [];
 
+    // הוסף תאריכים מהחודש הקודם
+    if (startingWeekday > 0) {
+      final previousMonthLastDay =
+          DateTime(currentGregorianDate.year, currentGregorianDate.month, 0);
+      final daysInPreviousMonth = previousMonthLastDay.day;
+
+      for (int i = startingWeekday - 1; i >= 0; i--) {
+        final day = daysInPreviousMonth - i;
+        dayWidgets.add(_buildGregorianDayCell(context, state, day,
+            isFromOtherMonth: true, monthOffset: -1));
+      }
+    }
+
+    // הוסף תאריכים מהחודש הנוכחי
     for (int day = 1; day <= daysInMonth; day++) {
       dayWidgets.add(_buildGregorianDayCell(context, state, day));
+    }
+
+    // הוסף תאריכים מהחודש הבא
+    final totalCells = ((dayWidgets.length / 7).ceil()) * 7;
+    final remainingCells = totalCells - dayWidgets.length;
+    for (int day = 1; day <= remainingCells; day++) {
+      dayWidgets.add(_buildGregorianDayCell(context, state, day,
+          isFromOtherMonth: true, monthOffset: 1));
     }
 
     List<Widget> rows = [];
     for (int i = 0; i < dayWidgets.length; i += 7) {
       final rowWidgets = dayWidgets.sublist(
           i, i + 7 > dayWidgets.length ? dayWidgets.length : i + 7);
-      while (rowWidgets.length < 7) {
-        rowWidgets.add(const SizedBox());
-      }
       rows.add(
           Row(children: rowWidgets.map((w) => Expanded(child: w)).toList()));
     }
@@ -533,14 +624,39 @@ class CalendarWidget extends StatelessWidget {
     return Row(children: weekDays);
   }
 
-  Widget _buildHebrewDayCell(
-      BuildContext context, CalendarState state, int day) {
+  Widget _buildHebrewDayCell(BuildContext context, CalendarState state, int day,
+      {bool isFromOtherMonth = false, int monthOffset = 0}) {
     final jewishDate = JewishDate();
-    jewishDate.setJewishDate(
-      state.currentJewishDate.getJewishYear(),
-      state.currentJewishDate.getJewishMonth(),
-      day,
-    );
+
+    if (isFromOtherMonth) {
+      // חשב את החודש האחר - קודם מצא את החודש הנכון
+      int targetYear = state.currentJewishDate.getJewishYear();
+      int targetMonth = state.currentJewishDate.getJewishMonth() + monthOffset;
+
+      // טיפול במעבר שנה
+      if (targetMonth < 1) {
+        targetYear--;
+        final tempDate = JewishDate();
+        tempDate.setJewishDate(targetYear, 1, 1);
+        targetMonth = tempDate.isJewishLeapYear() ? 13 : 12;
+      } else if (targetMonth > 12) {
+        final tempDate = JewishDate();
+        tempDate.setJewishDate(targetYear, 1, 1);
+        if (!tempDate.isJewishLeapYear() || targetMonth > 13) {
+          targetYear++;
+          targetMonth = 1;
+        }
+      }
+
+      jewishDate.setJewishDate(targetYear, targetMonth, day);
+    } else {
+      jewishDate.setJewishDate(
+        state.currentJewishDate.getJewishYear(),
+        state.currentJewishDate.getJewishMonth(),
+        day,
+      );
+    }
+
     final gregorianDate = jewishDate.getGregorianCalendar();
 
     final isSelected = state.selectedJewishDate.getJewishDayOfMonth() == day &&
@@ -559,100 +675,113 @@ class CalendarWidget extends StatelessWidget {
         specificDate: gregorianDate,
       ),
       child: GestureDetector(
-        onTap: () =>
-            context.read<CalendarCubit>().selectDate(jewishDate, gregorianDate),
-        child: Container(
-          margin: const EdgeInsets.all(2),
-          height: 88,
-          decoration: BoxDecoration(
-            color: _getBackgroundColor(context, gregorianDate, isSelected,
-                    isToday, state.inIsrael) ??
-                (isSelected
-                    ? Theme.of(context).colorScheme.primaryContainer
-                    : isToday
-                        ? Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withValues(alpha: 0.25)
-                        : Theme.of(context)
-                            .colorScheme
-                            .surfaceContainer
-                            .withValues(alpha: 0.2)),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isSelected
-                  ? Theme.of(context).colorScheme.primary
-                  : isToday
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.outlineVariant,
-              width: isToday ? 2 : 1,
-            ),
-          ),
-          child: Stack(
-            children: [
-              Positioned(
-                top: 4,
-                right: 4,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      _formatHebrewDay(day),
-                      style: TextStyle(
-                        color: isSelected
-                            ? Theme.of(context).colorScheme.onPrimaryContainer
-                            : Theme.of(context).colorScheme.onSurface,
-                        fontWeight:
-                            isSelected ? FontWeight.bold : FontWeight.normal,
-                        fontSize: state.calendarType == CalendarType.combined
-                            ? 12
-                            : 14,
-                      ),
-                    ),
-                    if (state.calendarType == CalendarType.hebrew &&
-                        (jewishDate.isJewishLeapYear() &&
-                            (jewishDate.getJewishMonth() == 12 ||
-                                jewishDate.getJewishMonth() == 13) &&
-                            day == 1))
-                      Text(
-                        _getHebrewMonthNameFor(jewishDate),
-                        style: TextStyle(
-                          fontSize: 8,
-                          color: isSelected
-                              ? Theme.of(context).colorScheme.onPrimaryContainer
-                              : Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              if (state.calendarType == CalendarType.combined)
-                Positioned(
-                  top: 4,
-                  left: 4,
-                  child: Text(
-                    '${gregorianDate.day}',
-                    style: TextStyle(
-                      color: isSelected
+        onTap: () {
+          // אם זה תאריך מחודש אחר, עבור לחודש הזה
+          if (isFromOtherMonth) {
+            context.read<CalendarCubit>().jumpToDate(gregorianDate);
+          } else {
+            context.read<CalendarCubit>().selectDate(jewishDate, gregorianDate);
+          }
+        },
+        child: Opacity(
+          opacity: isFromOtherMonth ? 0.4 : 1.0,
+          child: Container(
+            margin: const EdgeInsets.all(2),
+            height: 88,
+            decoration: BoxDecoration(
+              color: _getBackgroundColor(context, gregorianDate, isSelected,
+                      isToday, state.inIsrael) ??
+                  (isSelected
+                      ? Theme.of(context).colorScheme.primaryContainer
+                      : isToday
                           ? Theme.of(context)
                               .colorScheme
-                              .onPrimaryContainer
-                              .withValues(alpha: 0.85)
-                          : Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontSize: 10,
-                    ),
+                              .primary
+                              .withValues(alpha: 0.25)
+                          : Theme.of(context)
+                              .colorScheme
+                              .surfaceContainer
+                              .withValues(alpha: 0.2)),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isSelected
+                    ? Theme.of(context).colorScheme.primary
+                    : isToday
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.outlineVariant,
+                width: isToday ? 2 : 1,
+              ),
+            ),
+            child: Stack(
+              children: [
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        _formatHebrewDay(day),
+                        style: TextStyle(
+                          color: isSelected
+                              ? Theme.of(context).colorScheme.onPrimaryContainer
+                              : Theme.of(context).colorScheme.onSurface,
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.normal,
+                          fontSize: state.calendarType == CalendarType.combined
+                              ? 12
+                              : 14,
+                        ),
+                      ),
+                      if (state.calendarType == CalendarType.hebrew &&
+                          (jewishDate.isJewishLeapYear() &&
+                              (jewishDate.getJewishMonth() == 12 ||
+                                  jewishDate.getJewishMonth() == 13) &&
+                              day == 1))
+                        Text(
+                          _getHebrewMonthNameFor(jewishDate),
+                          style: TextStyle(
+                            fontSize: 8,
+                            color: isSelected
+                                ? Theme.of(context)
+                                    .colorScheme
+                                    .onPrimaryContainer
+                                : Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-              Positioned(
-                top: 30,
-                left: 4,
-                right: 4,
-                child: _DayExtras(
-                  date: gregorianDate,
-                  inIsrael: state.inIsrael,
+                if (state.calendarType == CalendarType.combined)
+                  Positioned(
+                    top: 4,
+                    left: 4,
+                    child: Text(
+                      '${gregorianDate.day}',
+                      style: TextStyle(
+                        color: isSelected
+                            ? Theme.of(context)
+                                .colorScheme
+                                .onPrimaryContainer
+                                .withValues(alpha: 0.85)
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  top: 30,
+                  left: 4,
+                  right: 4,
+                  child: _DayExtras(
+                    date: gregorianDate,
+                    inIsrael: state.inIsrael,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -660,9 +789,10 @@ class CalendarWidget extends StatelessWidget {
   }
 
   Widget _buildGregorianDayCell(
-      BuildContext context, CalendarState state, int day) {
-    final gregorianDate = DateTime(
-        state.currentGregorianDate.year, state.currentGregorianDate.month, day);
+      BuildContext context, CalendarState state, int day,
+      {bool isFromOtherMonth = false, int monthOffset = 0}) {
+    final gregorianDate = DateTime(state.currentGregorianDate.year,
+        state.currentGregorianDate.month + monthOffset, day);
     final jewishDate = JewishDate.fromDateTime(gregorianDate);
 
     final isSelected = state.selectedGregorianDate.day == day &&
@@ -680,80 +810,89 @@ class CalendarWidget extends StatelessWidget {
         specificDate: gregorianDate,
       ),
       child: GestureDetector(
-        onTap: () =>
-            context.read<CalendarCubit>().selectDate(jewishDate, gregorianDate),
-        child: Container(
-          margin: const EdgeInsets.all(2),
-          height: 88,
-          decoration: BoxDecoration(
-            color: _getBackgroundColor(context, gregorianDate, isSelected,
-                    isToday, state.inIsrael) ??
-                (isSelected
-                    ? Theme.of(context).colorScheme.primaryContainer
-                    : isToday
-                        ? Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withValues(alpha: 0.25)
-                        : Theme.of(context)
-                            .colorScheme
-                            .surfaceContainer
-                            .withValues(alpha: 0.2)),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isSelected
-                  ? Theme.of(context).colorScheme.primary
-                  : isToday
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.outlineVariant,
-              width: isToday ? 2 : 1,
-            ),
-          ),
-          child: Stack(
-            children: [
-              Positioned(
-                top: 4,
-                right: 4,
-                child: Text(
-                  '$day',
-                  style: TextStyle(
-                    color: isSelected
-                        ? Theme.of(context).colorScheme.onPrimaryContainer
-                        : Theme.of(context).colorScheme.onSurface,
-                    fontWeight:
-                        isSelected ? FontWeight.bold : FontWeight.normal,
-                    fontSize:
-                        state.calendarType == CalendarType.combined ? 12 : 14,
-                  ),
-                ),
-              ),
-              if (state.calendarType == CalendarType.combined)
-                Positioned(
-                  top: 4,
-                  left: 4,
-                  child: Text(
-                    _formatHebrewDay(jewishDate.getJewishDayOfMonth()),
-                    style: TextStyle(
-                      color: isSelected
+        onTap: () {
+          // אם זה תאריך מחודש אחר, עבור לחודש הזה
+          if (isFromOtherMonth) {
+            context.read<CalendarCubit>().jumpToDate(gregorianDate);
+          } else {
+            context.read<CalendarCubit>().selectDate(jewishDate, gregorianDate);
+          }
+        },
+        child: Opacity(
+          opacity: isFromOtherMonth ? 0.4 : 1.0,
+          child: Container(
+            margin: const EdgeInsets.all(2),
+            height: 88,
+            decoration: BoxDecoration(
+              color: _getBackgroundColor(context, gregorianDate, isSelected,
+                      isToday, state.inIsrael) ??
+                  (isSelected
+                      ? Theme.of(context).colorScheme.primaryContainer
+                      : isToday
                           ? Theme.of(context)
                               .colorScheme
-                              .onPrimaryContainer
-                              .withValues(alpha: 0.85)
-                          : Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontSize: 10,
+                              .primary
+                              .withValues(alpha: 0.25)
+                          : Theme.of(context)
+                              .colorScheme
+                              .surfaceContainer
+                              .withValues(alpha: 0.2)),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isSelected
+                    ? Theme.of(context).colorScheme.primary
+                    : isToday
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.outlineVariant,
+                width: isToday ? 2 : 1,
+              ),
+            ),
+            child: Stack(
+              children: [
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: Text(
+                    '$day',
+                    style: TextStyle(
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.onPrimaryContainer
+                          : Theme.of(context).colorScheme.onSurface,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontSize:
+                          state.calendarType == CalendarType.combined ? 12 : 14,
                     ),
                   ),
                 ),
-              Positioned(
-                top: 30,
-                left: 4,
-                right: 4,
-                child: _DayExtras(
-                  date: gregorianDate,
-                  inIsrael: state.inIsrael,
+                if (state.calendarType == CalendarType.combined)
+                  Positioned(
+                    top: 4,
+                    left: 4,
+                    child: Text(
+                      _formatHebrewDay(jewishDate.getJewishDayOfMonth()),
+                      style: TextStyle(
+                        color: isSelected
+                            ? Theme.of(context)
+                                .colorScheme
+                                .onPrimaryContainer
+                                .withValues(alpha: 0.85)
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  top: 30,
+                  left: 4,
+                  right: 4,
+                  child: _DayExtras(
+                    date: gregorianDate,
+                    inIsrael: state.inIsrael,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -826,46 +965,52 @@ class CalendarWidget extends StatelessWidget {
 
     // זמנים בסיסיים
     final List<Map<String, String?>> timesList = [
-      {'name': 'עלות השחר', 'time': dailyTimes['alos']},
+      {'id': 'alos', 'name': 'עלות השחר', 'time': dailyTimes['alos']},
       {
+        'id': 'alos16point1Degrees',
         'name': "עלוה\"ש (72 דק') במע'",
         'time': dailyTimes['alos16point1Degrees']
       },
       {
+        'id': 'alos19point8Degrees',
         'name': "עלוה\"ש (90 דק') במע'",
         'time': dailyTimes['alos19point8Degrees']
       },
-      {'name': 'זריחה', 'time': dailyTimes['sunrise']},
-      {'name': 'סוף זמן ק"ש - מג"א', 'time': dailyTimes['sofZmanShmaMGA']},
-      {'name': 'סוף זמן ק"ש - גר"א', 'time': dailyTimes['sofZmanShmaGRA']},
-      {'name': 'סוף זמן תפילה - מג"א', 'time': dailyTimes['sofZmanTfilaMGA']},
-      {'name': 'סוף זמן תפילה - גר"א', 'time': dailyTimes['sofZmanTfilaGRA']},
-      {'name': 'חצות היום', 'time': dailyTimes['chatzos']},
-      {'name': 'חצות הלילה', 'time': dailyTimes['chatzosLayla']},
-      {'name': 'מנחה גדולה', 'time': dailyTimes['minchaGedola']},
-      {'name': 'מנחה קטנה', 'time': dailyTimes['minchaKetana']},
-      {'name': 'פלג המנחה', 'time': dailyTimes['plagHamincha']},
-      {'name': 'שקיעה', 'time': dailyTimes['sunset']},
-      {'name': 'צאת הכוכבים', 'time': dailyTimes['tzais']},
-      {'name': 'צאת הכוכבים ר"ת', 'time': dailyTimes['sunsetRT']},
+      {'id': 'sunrise', 'name': 'זריחה', 'time': dailyTimes['sunrise']},
+      {'id': 'sofZmanShmaMGA', 'name': 'סוף זמן ק"ש - מג"א', 'time': dailyTimes['sofZmanShmaMGA']},
+      {'id': 'sofZmanShmaGRA', 'name': 'סוף זמן ק"ש - גר"א', 'time': dailyTimes['sofZmanShmaGRA']},
+      {'id': 'sofZmanTfilaMGA', 'name': 'סוף זמן תפילה - מג"א', 'time': dailyTimes['sofZmanTfilaMGA']},
+      {'id': 'sofZmanTfilaGRA', 'name': 'סוף זמן תפילה - גר"א', 'time': dailyTimes['sofZmanTfilaGRA']},
+      {'id': 'chatzos', 'name': 'חצות היום', 'time': dailyTimes['chatzos']},
+      {'id': 'chatzosLayla', 'name': 'חצות הלילה', 'time': dailyTimes['chatzosLayla']},
+      {'id': 'minchaGedola', 'name': 'מנחה גדולה', 'time': dailyTimes['minchaGedola']},
+      {'id': 'minchaKetana', 'name': 'מנחה קטנה', 'time': dailyTimes['minchaKetana']},
+      {'id': 'plagHamincha', 'name': 'פלג המנחה', 'time': dailyTimes['plagHamincha']},
+      {'id': 'sunset', 'name': 'שקיעה', 'time': dailyTimes['sunset']},
+      {'id': 'tzais', 'name': 'צאת הכוכבים', 'time': dailyTimes['tzais']},
+      {'id': 'sunsetRT', 'name': 'צאת הכוכבים ר"ת', 'time': dailyTimes['sunsetRT']},
     ];
 
     // הוספת זמנים מיוחדים לערב פסח
     if (jewishCalendar.getYomTovIndex() == JewishCalendar.EREV_PESACH) {
       timesList.addAll([
         {
+          'id': 'sofZmanAchilasChametzMGA',
           'name': 'סוף זמן אכילת חמץ - מג"א',
           'time': dailyTimes['sofZmanAchilasChametzMGA']
         },
         {
+          'id': 'sofZmanAchilasChametzGRA',
           'name': 'סוף זמן אכילת חמץ - גר"א',
           'time': dailyTimes['sofZmanAchilasChametzGRA']
         },
         {
+          'id': 'sofZmanBiurChametzMGA',
           'name': 'סוף זמן ביעור חמץ - מג"א',
           'time': dailyTimes['sofZmanBiurChametzMGA']
         },
         {
+          'id': 'sofZmanBiurChametzGRA',
           'name': 'סוף זמן ביעור חמץ - גר"א',
           'time': dailyTimes['sofZmanBiurChametzGRA']
         },
@@ -874,16 +1019,17 @@ class CalendarWidget extends StatelessWidget {
 
     // הוספת זמני כניסת שבת/חג
     if (jewishCalendar.getDayOfWeek() == 6 || jewishCalendar.isErevYomTov()) {
-      timesList
-          .add({'name': 'הדלקת נרות', 'time': dailyTimes['candleLighting']});
+      timesList.add(
+          {'id': 'candleLighting', 'name': 'הדלקת נרות', 'time': dailyTimes['candleLighting']});
     }
 
-    // הוספת זמני יציאת שבת/חג (לא להוסיף בימי חול המועד והושענא רבה)
+    // הוספת זמני יציאת שבת/חג (לא להוסיף בימי חול המועד, הושענא רבה וחנוכה)
     final int yomTovIndex = jewishCalendar.getYomTovIndex();
     final bool isNotExitTimesDay =
         yomTovIndex == JewishCalendar.CHOL_HAMOED_SUCCOS ||
             yomTovIndex == JewishCalendar.CHOL_HAMOED_PESACH ||
-            yomTovIndex == JewishCalendar.HOSHANA_RABBA;
+            yomTovIndex == JewishCalendar.HOSHANA_RABBA ||
+            yomTovIndex == JewishCalendar.CHANUKAH;
 
     if ((jewishCalendar.getDayOfWeek() == 7 || jewishCalendar.isYomTov()) &&
         !isNotExitTimesDay) {
@@ -903,23 +1049,22 @@ class CalendarWidget extends StatelessWidget {
       }
 
       timesList.addAll([
-        {'name': exitName, 'time': dailyTimes['shabbosExit1']},
-        {'name': exitName2, 'time': dailyTimes['shabbosExit2']},
+        {'id': 'shabbosExit1', 'name': exitName, 'time': dailyTimes['shabbosExit1']},
+        {'id': 'shabbosExit2', 'name': exitName2, 'time': dailyTimes['shabbosExit2']},
       ]);
     }
 
     // הוספת זמן ספירת העומר
     if (jewishCalendar.getDayOfOmer() != -1) {
-      timesList
-          .add({'name': 'ספירת העומר', 'time': dailyTimes['omerCounting']});
+      timesList.add({'id': 'omerCounting', 'name': 'ספירת העומר', 'time': dailyTimes['omerCounting']});
     }
 
     // הוספת זמני תענית
     if (jewishCalendar.isTaanis() &&
         jewishCalendar.getYomTovIndex() != JewishCalendar.YOM_KIPPUR) {
       timesList.addAll([
-        {'name': 'תחילת התענית', 'time': dailyTimes['fastStart']},
-        {'name': 'סיום התענית', 'time': dailyTimes['fastEnd']},
+        {'id': 'fastStart', 'name': 'תחילת התענית', 'time': dailyTimes['fastStart']},
+        {'id': 'fastEnd', 'name': 'סיום התענית', 'time': dailyTimes['fastEnd']},
       ]);
     }
 
@@ -928,33 +1073,31 @@ class CalendarWidget extends StatelessWidget {
         dailyTimes['kidushLevanaLatest'] != null) {
       if (dailyTimes['kidushLevanaEarliest'] != null) {
         timesList.add({
+          'id': 'kidushLevanaEarliest',
           'name': 'תחילת זמן קידוש לבנה',
           'time': dailyTimes['kidushLevanaEarliest']
         });
       }
       if (dailyTimes['kidushLevanaLatest'] != null) {
         timesList.add({
+          'id': 'kidushLevanaLatest',
           'name': 'סוף זמן קידוש לבנה',
           'time': dailyTimes['kidushLevanaLatest']
         });
       }
     }
 
-    // הוספת זמני חנוכה
-    if (jewishCalendar.isChanukah()) {
-      timesList.add(
-          {'name': 'הדלקת נרות חנוכה', 'time': dailyTimes['chanukahCandles']});
-    }
-
     // הוספת זמני קידוש לבנה
     if (dailyTimes['tchilasKidushLevana'] != null) {
       timesList.add({
+        'id': 'tchilasKidushLevana',
         'name': 'תחילת זמן קידוש לבנה',
         'time': dailyTimes['tchilasKidushLevana']
       });
     }
     if (dailyTimes['sofZmanKidushLevana'] != null) {
       timesList.add({
+        'id': 'sofZmanKidushLevana',
         'name': 'סוף זמן קידוש לבנה',
         'time': dailyTimes['sofZmanKidushLevana']
       });
@@ -971,24 +1114,41 @@ class CalendarWidget extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 2.5,
+        childAspectRatio: 2.2,
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
       ),
       itemCount: filteredTimesList.length,
       itemBuilder: (context, index) {
         final timeData = filteredTimesList[index];
+        final timeId = timeData['id']!;
+        final timeName = timeData['name']!;
+        final timeLabel = timeData['time'] ?? '--:--';
+
+        final existingAlert = state.zmanAlerts[timeId];
+        final bool hasAlert = existingAlert != null;
+
         final isSpecialTime = _isSpecialTime(timeData['name']!);
-        final bgColor = isSpecialTime
+        final bgColor = hasAlert
+          ? scheme.errorContainer
+          : (isSpecialTime
             ? scheme.tertiaryContainer
-            : scheme.surfaceContainerHighest;
-        final border =
-            isSpecialTime ? Border.all(color: scheme.tertiary, width: 1) : null;
-        final titleColor = isSpecialTime
+            : scheme.surfaceContainerHighest);
+        final border = hasAlert
+          ? Border.all(color: scheme.error, width: 1)
+          : (isSpecialTime
+            ? Border.all(color: scheme.tertiary, width: 1)
+            : null);
+        final titleColor = hasAlert
+          ? scheme.onErrorContainer
+          : (isSpecialTime
             ? scheme.onTertiaryContainer
-            : scheme.onSurfaceVariant;
-        final timeColor =
-            isSpecialTime ? scheme.onTertiaryContainer : scheme.onSurface;
+            : scheme.onSurfaceVariant);
+        final timeColor = hasAlert
+          ? scheme.onErrorContainer
+          : (isSpecialTime
+            ? scheme.onTertiaryContainer
+            : scheme.onSurface);
 
         return Container(
           padding: const EdgeInsets.all(8),
@@ -1001,19 +1161,81 @@ class CalendarWidget extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                timeData['name']!,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: titleColor,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      timeName,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: titleColor,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  PopupMenuButton<_ZmanMenuAction>(
+                    tooltip: '',
+                    padding: EdgeInsets.zero,
+                    child: SizedBox.square(
+                      dimension: 18,
+                      child: Center(
+                        child: Icon(
+                          FluentIcons.more_vertical_24_regular,
+                          color: titleColor,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                    itemBuilder: (context) {
+                      return [
+                        PopupMenuItem<_ZmanMenuAction>(
+                          value: _ZmanMenuAction.toggle,
+                          child: Text(
+                            hasAlert
+                                ? 'מופעלת התראה לזמן זה'
+                                : 'הפעל התראה לזמן זה',
+                          ),
+                        ),
+                      ];
+                    },
+                    onSelected: (_) async {
+                      final cubit = context.read<CalendarCubit>();
+
+                      if (timeLabel == '--:--') {
+                        UiSnack.showError('לא ניתן להפעיל התראה לזמן לא זמין');
+                        return;
+                      }
+
+                      final initial = existingAlert?.minutesBefore ?? 60;
+                      final result = await _showZmanAlertDialog(
+                        context,
+                        zmanName: timeName,
+                        timeLabel: timeLabel,
+                        initialMinutesBefore: initial,
+                        isEnabled: hasAlert,
+                      );
+                      if (result == null) return;
+
+                      if (result.cancelAlert) {
+                        await cubit.cancelZmanAlertPreference(timeId: timeId);
+                        return;
+                      }
+
+                      await cubit.setZmanAlertPreference(
+                        timeId: timeId,
+                        displayName: timeName,
+                        minutesBefore: result.minutesBefore,
+                      );
+                    },
+                  ),
+                ],
               ),
               const SizedBox(height: 2),
               Text(
-                timeData['time'] ?? '--:--',
+                timeLabel,
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -1043,19 +1265,6 @@ class CalendarWidget extends StatelessWidget {
       bavliDaf = 0;
     }
 
-    // חישוב דף יומי ירושלמי
-    String yerushalmiTractate;
-    int yerushalmiDaf;
-    try {
-      final dafYomiYerushalmi =
-          YerushalmiYomiCalculator.getDafYomiYerushalmi(jewishCalendar);
-      yerushalmiTractate = dafYomiYerushalmi.getMasechta();
-      yerushalmiDaf = dafYomiYerushalmi.getDaf();
-    } catch (e) {
-      yerushalmiTractate = 'לא זמין';
-      yerushalmiDaf = 0;
-    }
-
     return Row(
       children: [
         Expanded(
@@ -1074,29 +1283,6 @@ class CalendarWidget extends StatelessWidget {
                 ),
                 Text(
                   '$bavliTractate ${_formatDafNumber(bavliDaf)}',
-                  style: const TextStyle(fontSize: 10),
-                ),
-              ],
-            ),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: null,
-            icon: const Icon(FluentIcons.book_24_regular),
-            label: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'דף היומי ירושלמי',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  '$yerushalmiTractate ${_formatDafNumber(yerushalmiDaf)}',
                   style: const TextStyle(fontSize: 10),
                 ),
               ],
@@ -1348,6 +1534,19 @@ class CalendarWidget extends StatelessWidget {
 
   int _hebrewMonthToInt(String monthName) {
     final cleanMonth = monthName.trim();
+
+    // טיפול מיוחד בחודשי אדר בשנה מעוברת
+    if (cleanMonth == 'אדר א' ||
+        cleanMonth == 'אדר א׳' ||
+        cleanMonth == 'אדר 1') {
+      return 12;
+    }
+    if (cleanMonth == 'אדר ב' ||
+        cleanMonth == 'אדר ב׳' ||
+        cleanMonth == 'אדר 2') {
+      return 13;
+    }
+
     final monthIndex = hebrewMonths.indexOf(cleanMonth);
     if (monthIndex != -1) return monthIndex + 1;
 
@@ -1390,14 +1589,14 @@ class CalendarWidget extends StatelessWidget {
         return StatefulBuilder(
           builder: (builderContext, setState) {
             return AlertDialog(
-              title: const Text('קפוץ לתאריך'),
+              title: Text(context.tr('קפוץ לתאריך')),
               content: SizedBox(
                 width: 350,
                 height: 450,
                 child: Column(
                   children: [
                     // הזנת תאריך ידנית
-                    TextField(
+                    RtlTextField(
                       controller: dateController,
                       autofocus: true,
                       textInputAction: TextInputAction.done,
@@ -1461,7 +1660,7 @@ class CalendarWidget extends StatelessWidget {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('ביטול'),
+                  child: Text(context.tr('ביטול')),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -1486,7 +1685,7 @@ class CalendarWidget extends StatelessWidget {
                     context.read<CalendarCubit>().jumpToDate(dateToJump);
                     Navigator.of(dialogContext).pop();
                   },
-                  child: const Text('קפוץ'),
+                  child: Text(context.tr('קפוץ')),
                 ),
               ],
             );
@@ -1518,14 +1717,34 @@ class CalendarWidget extends StatelessWidget {
     // 2. נסה לפרש כתאריך עברי (למשל: י"ח אלול תשפ"ה)
     try {
       final parts = cleanInput.split(RegExp(r'\s+'));
-      if (parts.length < 2 || parts.length > 3) return null;
+      if (parts.length < 2 || parts.length > 4) return null;
 
       final day = _hebrewNumberToInt(parts[0]);
-      final month = _hebrewMonthToInt(parts[1]);
+
+      // טיפול בשמות חודשים בני שתי מילים (אדר א, אדר ב)
+      String monthName;
+      int yearPartIndex;
+
+      if (parts.length >= 3 &&
+          (parts[1] == 'אדר') &&
+          (parts[2] == 'א' ||
+              parts[2] == 'א׳' ||
+              parts[2] == 'ב' ||
+              parts[2] == 'ב׳')) {
+        // שם החודש הוא שתי מילים: "אדר א" או "אדר ב"
+        monthName = '${parts[1]} ${parts[2]}';
+        yearPartIndex = 3;
+      } else {
+        // שם החודש הוא מילה אחת
+        monthName = parts[1];
+        yearPartIndex = 2;
+      }
+
+      final month = _hebrewMonthToInt(monthName);
       int year;
 
-      if (parts.length == 3) {
-        year = _hebrewYearToInt(parts[2]);
+      if (parts.length > yearPartIndex) {
+        year = _hebrewYearToInt(parts[yearPartIndex]);
       } else {
         // אם השנה הושמטה, נשתמש בשנה העברית הנוכחית שמוצגת בלוח
         year = context
@@ -1561,8 +1780,13 @@ class CalendarWidget extends StatelessWidget {
     final TextEditingController yearsController = TextEditingController(
         text: existingEvent?.recurringYears?.toString() ?? '');
 
-    bool isRecurring = existingEvent?.recurring ?? false;
-    bool useHebrewCalendar = existingEvent?.recurOnHebrew ?? true;
+    bool isRecurring =
+        (existingEvent?.recurrenceType ?? RecurrenceType.none) !=
+            RecurrenceType.none;
+    RecurrenceType selectedRecurrenceType = isRecurring
+        ? existingEvent!.recurrenceType
+        : RecurrenceType.annualHebrew;
+
     // משתנה חדש שבודק אם האירוע מוגדר כ"תמיד"
     bool recurForever = existingEvent?.recurringYears == null;
 
@@ -1587,7 +1811,7 @@ class CalendarWidget extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      TextField(
+                      RtlTextField(
                         controller: titleController,
                         autofocus: true,
                         textInputAction: TextInputAction.done,
@@ -1611,12 +1835,14 @@ class CalendarWidget extends StatelessWidget {
                             recurringYears = null;
                           }
 
+                          final finalRecurrenceType =
+                              isRecurring ? selectedRecurrenceType : RecurrenceType.none;
+
                           if (isEditMode) {
                             final updatedEvent = existingEvent.copyWith(
                               title: titleController.text.trim(),
                               description: descriptionController.text.trim(),
-                              recurring: isRecurring,
-                              recurOnHebrew: useHebrewCalendar,
+                              recurrenceType: finalRecurrenceType,
                               recurringYears: recurringYears,
                             );
                             cubit.updateEvent(updatedEvent);
@@ -1625,8 +1851,7 @@ class CalendarWidget extends StatelessWidget {
                               title: titleController.text.trim(),
                               description: descriptionController.text.trim(),
                               baseGregorianDate: displayedGregorianDate,
-                              isRecurring: isRecurring,
-                              recurOnHebrew: useHebrewCalendar,
+                              recurrenceType: finalRecurrenceType,
                               recurringYears: recurringYears,
                             );
                           }
@@ -1634,7 +1859,7 @@ class CalendarWidget extends StatelessWidget {
                         },
                       ),
                       const SizedBox(height: 16),
-                      TextField(
+                      RtlTextField(
                         controller: descriptionController,
                         decoration: const InputDecoration(
                           labelText: 'תיאור (אופציונלי)',
@@ -1672,7 +1897,7 @@ class CalendarWidget extends StatelessWidget {
 
                       // אירוע חוזר
                       SwitchListTile(
-                        title: const Text('אירוע חוזר'),
+                        title: Text(context.tr('אירוע חוזר')),
                         value: isRecurring,
                         onChanged: (value) =>
                             setState(() => isRecurring = value),
@@ -1683,33 +1908,48 @@ class CalendarWidget extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 16.0),
                           child: Column(
                             children: [
-                              DropdownButtonFormField<bool>(
-                                initialValue: useHebrewCalendar,
+                              DropdownButtonFormField<RecurrenceType>(
+                                initialValue: selectedRecurrenceType,
                                 decoration: const InputDecoration(
                                   labelText: 'חזור לפי',
                                   border: OutlineInputBorder(),
                                 ),
                                 items: [
-                                  DropdownMenuItem<bool>(
-                                    value: true,
-                                    child: Text(
-                                        'לוח עברי (${_formatHebrewDay(displayedJewishDate.getJewishDayOfMonth())} ${_getHebrewMonthNameFor(displayedJewishDate)})'),
+                                  const DropdownMenuItem(
+                                    value: RecurrenceType.weekly,
+                                    child: Text('שבועי'),
                                   ),
-                                  DropdownMenuItem<bool>(
-                                    value: false,
+                                  DropdownMenuItem(
+                                    value: RecurrenceType.monthlyHebrew,
                                     child: Text(
-                                        'לוח לועזי (${displayedGregorianDate.day}/${displayedGregorianDate.month})'),
+                                        'חודשי עברי (יום ${_formatHebrewDay(displayedJewishDate.getJewishDayOfMonth())})'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: RecurrenceType.monthlyGregorian,
+                                    child: Text(
+                                        'חודשי לועזי (יום ${displayedGregorianDate.day})'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: RecurrenceType.annualHebrew,
+                                    child: Text(
+                                        'שנתי עברי (${_formatHebrewDay(displayedJewishDate.getJewishDayOfMonth())} ${_getHebrewMonthNameFor(displayedJewishDate)})'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: RecurrenceType.annualGregorian,
+                                    child: Text(
+                                        'שנתי לועזי (${displayedGregorianDate.day}/${displayedGregorianDate.month})'),
                                   ),
                                 ],
-                                onChanged: (value) => setState(
-                                    () => useHebrewCalendar = value ?? true),
+                                onChanged: (value) => setState(() =>
+                                    selectedRecurrenceType =
+                                        value ?? RecurrenceType.annualHebrew),
                               ),
                               const SizedBox(height: 16),
 
                               // --- כאן נמצא השינוי המרכזי ---
                               // הוספנו תיבת סימון לבחירת "תמיד"
                               CheckboxListTile(
-                                title: const Text('חזרה ללא הגבלה (תמיד)'),
+                                title: Text(context.tr('חזרה ללא הגבלה (תמיד)')),
                                 value: recurForever,
                                 onChanged: (value) {
                                   setState(() {
@@ -1727,7 +1967,7 @@ class CalendarWidget extends StatelessWidget {
                               const SizedBox(height: 8),
 
                               // שדה מספר השנים מושבת כעת אם "תמיד" מסומן
-                              TextField(
+                              RtlTextField(
                                 controller: yearsController,
                                 keyboardType: TextInputType.number,
                                 enabled: !recurForever, // <-- החלק החשוב
@@ -1754,7 +1994,7 @@ class CalendarWidget extends StatelessWidget {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('ביטול'),
+                  child: Text(context.tr('ביטול')),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -1775,12 +2015,14 @@ class CalendarWidget extends StatelessWidget {
                       recurringYears = null;
                     }
 
+                    final finalRecurrenceType =
+                        isRecurring ? selectedRecurrenceType : RecurrenceType.none;
+
                     if (isEditMode) {
                       final updatedEvent = existingEvent.copyWith(
                         title: titleController.text.trim(),
                         description: descriptionController.text.trim(),
-                        recurring: isRecurring,
-                        recurOnHebrew: useHebrewCalendar,
+                        recurrenceType: finalRecurrenceType,
                         recurringYears: recurringYears,
                       );
                       cubit.updateEvent(updatedEvent);
@@ -1789,8 +2031,7 @@ class CalendarWidget extends StatelessWidget {
                         title: titleController.text.trim(),
                         description: descriptionController.text.trim(),
                         baseGregorianDate: displayedGregorianDate,
-                        isRecurring: isRecurring,
-                        recurOnHebrew: useHebrewCalendar,
+                        recurrenceType: finalRecurrenceType,
                         recurringYears: recurringYears,
                       );
                     }
@@ -1823,6 +2064,23 @@ class CalendarWidget extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _getRecurrenceLabel(RecurrenceType type) {
+    switch (type) {
+      case RecurrenceType.weekly:
+        return 'חוזר שבועי';
+      case RecurrenceType.monthlyHebrew:
+        return 'חוזר חודשי (עברי)';
+      case RecurrenceType.monthlyGregorian:
+        return 'חוזר חודשי (לועזי)';
+      case RecurrenceType.annualHebrew:
+        return 'חוזר שנתי (עברי)';
+      case RecurrenceType.annualGregorian:
+        return 'חוזר שנתי (לועזי)';
+      case RecurrenceType.none:
+        return '';
+    }
   }
 
   Widget _buildEventsList(BuildContext context, CalendarState state,
@@ -1911,9 +2169,7 @@ class CalendarWidget extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            event.recurOnHebrew
-                                ? 'חוזר לפי לוח עברי'
-                                : 'חוזר לפי לוח לועזי',
+                            _getRecurrenceLabel(event.recurrenceType),
                             style: TextStyle(
                               fontSize: 10,
                               color: Theme.of(context).colorScheme.primary,
@@ -2060,10 +2316,6 @@ class _TimesAndEventsTabViewState extends State<_TimesAndEventsTabView>
                         ],
                       ),
                       const SizedBox(height: 16),
-                      widget.buildTimesGrid(context, widget.state),
-                      const SizedBox(height: 16),
-                      widget.buildDafYomiButtons(context, widget.state),
-                      const SizedBox(height: 16),
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(12),
@@ -2073,15 +2325,53 @@ class _TimesAndEventsTabViewState extends State<_TimesAndEventsTabView>
                           border: Border.all(
                               color: Theme.of(context).primaryColor, width: 1),
                         ),
-                        child: Text(
-                          'אין לסמוך על הזמנים!',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).primaryColor,
-                          ),
+                        child: Column(
+                          children: [
+                            Text(
+                              'אין לסמוך על הזמנים כלל!',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text.rich(
+                              TextSpan(
+                                children: [
+                                  const TextSpan(
+                                    text: 'שים לב! ',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
+                                  WidgetSpan(
+                                    child: InkWell(
+                                      onTap: () =>
+                                          _openCalendarCalculationPage(context),
+                                      child: Text(
+                                        'הזמנים שונים',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Theme.of(context).primaryColor,
+                                          decoration: TextDecoration.underline,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const TextSpan(
+                                    text: ' מהותית מהלוח \'עיתים לבינה\'!',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
                         ),
                       ),
+                      const SizedBox(height: 16),
+                      widget.buildTimesGrid(context, widget.state),
+                      const SizedBox(height: 16),
+                      widget.buildDafYomiButtons(context, widget.state),
                     ],
                   ),
                 ),
@@ -2099,7 +2389,7 @@ class _TimesAndEventsTabViewState extends State<_TimesAndEventsTabView>
                                 context, widget.state),
                             icon: const Icon(FluentIcons.add_24_regular,
                                 size: 16),
-                            label: const Text('צור אירוע'),
+                            label: Text(context.tr('צור אירוע')),
                             style: ElevatedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 8),
@@ -2131,7 +2421,7 @@ class _TimesAndEventsTabViewState extends State<_TimesAndEventsTabView>
                         ],
                       ),
                       const SizedBox(height: 16),
-                      TextField(
+                      RtlTextField(
                         onChanged: (query) => context
                             .read<CalendarCubit>()
                             .setEventSearchQuery(query),
@@ -2180,6 +2470,166 @@ class _TimesAndEventsTabViewState extends State<_TimesAndEventsTabView>
           ),
         ],
       ),
+    );
+  }
+
+  // פונקציה לפתיחת דף חישוב הזמנים
+  static Future<void> _openCalendarCalculationPage(BuildContext context) async {
+    final libraryPath = Settings.getValue(SettingsRepository.keyLibraryPath);
+    if (libraryPath == null || libraryPath.isEmpty) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('לא נמצאה תיקיית הספרייה')),
+      );
+      return;
+    }
+
+    final otzariaSitePath = Directory(
+        '$libraryPath${Platform.pathSeparator}אוצריא${Platform.pathSeparator}אודות התוכנה${Platform.pathSeparator}otzaria-site');
+
+    if (!await otzariaSitePath.exists()) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('לא נמצאה תיקיית otzaria-site')),
+      );
+      return;
+    }
+
+    final htmlFile = File(
+        '${otzariaSitePath.path}${Platform.pathSeparator}calendar-calculation.html');
+    if (!await htmlFile.exists()) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('הקובץ calendar-calculation.html לא נמצא')),
+      );
+      return;
+    }
+
+    final uri = Uri.file(htmlFile.path);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+}
+
+// --- Zman alert dialog (file-scope private) ---
+
+enum _ZmanMenuAction { toggle }
+
+class _ZmanAlertDialogResult {
+  final int minutesBefore;
+  final bool cancelAlert;
+
+  const _ZmanAlertDialogResult({
+    required this.minutesBefore,
+    required this.cancelAlert,
+  });
+}
+
+class _ZmanAlertDialog extends StatefulWidget {
+  final String zmanName;
+  final String timeLabel;
+  final int initialMinutesBefore;
+  final bool isEnabled;
+
+  const _ZmanAlertDialog({
+    required this.zmanName,
+    required this.timeLabel,
+    required this.initialMinutesBefore,
+    required this.isEnabled,
+  });
+
+  @override
+  State<_ZmanAlertDialog> createState() => _ZmanAlertDialogState();
+}
+
+class _ZmanAlertDialogState extends State<_ZmanAlertDialog> {
+  late int hours;
+  late int minutes;
+
+  @override
+  void initState() {
+    super.initState();
+    final total = widget.initialMinutesBefore;
+    hours = total ~/ 60;
+    minutes = total % 60;
+  }
+
+  int get totalMinutes => (hours * 60) + minutes;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.zmanName),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'כמה זמן לפני זמן ${widget.zmanName} ברצונך לקבל התראה?',
+            textDirection: TextDirection.rtl,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'הזמן: ${widget.timeLabel}',
+            style: Theme.of(context).textTheme.bodySmall,
+            textDirection: TextDirection.rtl,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: SpinBox(
+                  min: 0,
+                  max: 23,
+                  value: hours.toDouble(),
+                  decimals: 0,
+                  step: 1,
+                  decoration: const InputDecoration(labelText: 'שעות'),
+                  onChanged: (v) => setState(() => hours = v.toInt()),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: SpinBox(
+                  min: 0,
+                  max: 59,
+                  value: minutes.toDouble(),
+                  decimals: 0,
+                  step: 1,
+                  decoration: const InputDecoration(labelText: 'דקות'),
+                  onChanged: (v) => setState(() => minutes = v.toInt()),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      actions: [
+        if (widget.isEnabled)
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(
+              const _ZmanAlertDialogResult(minutesBefore: 0, cancelAlert: true),
+            ),
+            child: Text(context.tr('בטל התראה')),
+          ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(context.tr('ביטול')),
+        ),
+        FilledButton(
+          onPressed: () {
+            Navigator.of(context).pop(
+              _ZmanAlertDialogResult(
+                minutesBefore: totalMinutes,
+                cancelAlert: false,
+              ),
+            );
+          },
+          child: Text(widget.isEnabled ? 'עדכן' : 'הפעל'),
+        ),
+      ],
     );
   }
 }

@@ -1,7 +1,10 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_settings_screens/flutter_settings_screens.dart';
+import 'package:otzaria/constants/fonts.dart';
 import 'package:otzaria/settings/settings_event.dart';
 import 'package:otzaria/settings/settings_repository.dart';
 import 'package:otzaria/settings/settings_state.dart';
+import 'package:otzaria/settings/per_book_settings.dart';
 
 class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   final SettingsRepository _repository;
@@ -12,10 +15,12 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<LoadSettings>(_onLoadSettings);
     on<UpdateDarkMode>(_onUpdateDarkMode);
     on<UpdateSeedColor>(_onUpdateSeedColor);
-    on<UpdatePaddingSize>(_onUpdatePaddingSize);
+    on<UpdateDarkSeedColor>(_onUpdateDarkSeedColor);
+    on<UpdateTextMaxWidth>(_onUpdateTextMaxWidth);
     on<UpdateFontSize>(_onUpdateFontSize);
     on<UpdateFontFamily>(_onUpdateFontFamily);
     on<UpdateCommentatorsFontFamily>(_onUpdateCommentatorsFontFamily);
+    on<UpdateCommentatorsFontSize>(_onUpdateCommentatorsFontSize);
     on<UpdateShowOtzarHachochma>(_onUpdateShowOtzarHachochma);
     on<UpdateShowHebrewBooks>(_onUpdateShowHebrewBooks);
     on<UpdateShowExternalBooks>(_onUpdateShowExternalBooks);
@@ -29,6 +34,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<UpdatePinSidebar>(_onUpdatePinSidebar);
     on<UpdateSidebarWidth>(_onUpdateSidebarWidth);
     on<UpdateFacetFilteringWidth>(_onUpdateFacetFilteringWidth);
+    on<UpdateCommentaryPaneWidth>(_onUpdateCommentaryPaneWidth);
     on<UpdateCopyWithHeaders>(_onUpdateCopyWithHeaders);
     on<UpdateCopyHeaderFormat>(_onUpdateCopyHeaderFormat);
     on<UpdateIsFullscreen>(_onUpdateIsFullscreen);
@@ -37,6 +43,11 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<RefreshShortcuts>(_onRefreshShortcuts);
     on<ResetShortcuts>(_onResetShortcuts);
     on<UpdateShortcut>(_onUpdateShortcut);
+    on<UpdateEnablePerBookSettings>(_onUpdateEnablePerBookSettings);
+    on<UpdateOfflineMode>(_onUpdateOfflineMode);
+    on<UpdateAlignTabsToRight>(_onUpdateAlignTabsToRight);
+    on<UpdateEnableHtmlLinks>(_onUpdateEnableHtmlLinks);
+    on<UpdateLanguage>(_onUpdateLanguage);
   }
 
   Future<void> _onLoadSettings(
@@ -44,13 +55,20 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     Emitter<SettingsState> emit,
   ) async {
     final settings = await _repository.loadSettings();
-  emit(SettingsState(
+
+    // בדסקטופ: אם המשתמש בחר גופן מערכת בעבר, נטען אותו כדי שיהיה זמין ב-TextStyle.
+    await AppFonts.ensureFontLoaded(settings['fontFamily'] as String);
+    await AppFonts.ensureFontLoaded(settings['commentatorsFontFamily'] as String);
+
+    emit(SettingsState(
       isDarkMode: settings['isDarkMode'],
       seedColor: settings['seedColor'],
-      paddingSize: settings['paddingSize'],
+      darkSeedColor: settings['darkSeedColor'],
+      textMaxWidth: settings['textMaxWidth'],
       fontSize: settings['fontSize'],
       fontFamily: settings['fontFamily'],
       commentatorsFontFamily: settings['commentatorsFontFamily'],
+      commentatorsFontSize: settings['commentatorsFontSize'],
       showOtzarHachochma: settings['showOtzarHachochma'],
       showHebrewBooks: settings['showHebrewBooks'],
       showExternalBooks: settings['showExternalBooks'],
@@ -64,6 +82,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       pinSidebar: settings['pinSidebar'],
       sidebarWidth: settings['sidebarWidth'],
       facetFilteringWidth: settings['facetFilteringWidth'],
+      commentaryPaneWidth: settings['commentaryPaneWidth'],
       copyWithHeaders: settings['copyWithHeaders'],
       copyHeaderFormat: settings['copyHeaderFormat'],
       isFullscreen: settings['isFullscreen'],
@@ -72,7 +91,52 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       shortcuts: Map<String, String>.unmodifiable(
         Map<String, String>.from(settings['shortcuts'] as Map),
       ),
+      enablePerBookSettings: settings['enablePerBookSettings'],
+      isOfflineMode: settings['isOfflineMode'] ?? false,
+      alignTabsToRight: settings['alignTabsToRight'] ?? false,
+      enableHtmlLinks: settings['enableHtmlLinks'] ?? true,
+      language: settings['language'] ?? 'he',
     ));
+  }
+
+  Future<void> _onUpdateEnablePerBookSettings(
+    UpdateEnablePerBookSettings event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await _repository.updateEnablePerBookSettings(event.enablePerBookSettings);
+    emit(state.copyWith(enablePerBookSettings: event.enablePerBookSettings));
+  }
+
+  Future<void> _onUpdateOfflineMode(
+    UpdateOfflineMode event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await _repository.updateOfflineMode(event.isOfflineMode);
+    emit(state.copyWith(isOfflineMode: event.isOfflineMode));
+  }
+
+  Future<void> _onUpdateAlignTabsToRight(
+    UpdateAlignTabsToRight event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await _repository.updateAlignTabsToRight(event.alignTabsToRight);
+    emit(state.copyWith(alignTabsToRight: event.alignTabsToRight));
+  }
+
+  Future<void> _onUpdateEnableHtmlLinks(
+    UpdateEnableHtmlLinks event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await _repository.updateEnableHtmlLinks(event.enableHtmlLinks);
+    emit(state.copyWith(enableHtmlLinks: event.enableHtmlLinks));
+  }
+
+  Future<void> _onUpdateLanguage(
+    UpdateLanguage event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await _repository.updateLanguage(event.language);
+    emit(state.copyWith(language: event.language));
   }
 
   Future<void> _onUpdateDarkMode(
@@ -91,12 +155,20 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     emit(state.copyWith(seedColor: event.seedColor));
   }
 
-  Future<void> _onUpdatePaddingSize(
-    UpdatePaddingSize event,
+  Future<void> _onUpdateDarkSeedColor(
+    UpdateDarkSeedColor event,
     Emitter<SettingsState> emit,
   ) async {
-    await _repository.updatePaddingSize(event.paddingSize);
-    emit(state.copyWith(paddingSize: event.paddingSize));
+    await _repository.updateDarkSeedColor(event.darkSeedColor);
+    emit(state.copyWith(darkSeedColor: event.darkSeedColor));
+  }
+
+  Future<void> _onUpdateTextMaxWidth(
+    UpdateTextMaxWidth event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await _repository.updateTextMaxWidth(event.textMaxWidth);
+    emit(state.copyWith(textMaxWidth: event.textMaxWidth));
   }
 
   Future<void> _onUpdateFontSize(
@@ -105,12 +177,16 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   ) async {
     await _repository.updateFontSize(event.fontSize);
     emit(state.copyWith(fontSize: event.fontSize));
+
+    // ניקוי קבצי per_book_settings מיותרים
+    _cleanupRedundantPerBookSettings();
   }
 
   Future<void> _onUpdateFontFamily(
     UpdateFontFamily event,
     Emitter<SettingsState> emit,
   ) async {
+    await AppFonts.ensureFontLoaded(event.fontFamily);
     await _repository.updateFontFamily(event.fontFamily);
     emit(state.copyWith(fontFamily: event.fontFamily));
   }
@@ -119,9 +195,18 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     UpdateCommentatorsFontFamily event,
     Emitter<SettingsState> emit,
   ) async {
+    await AppFonts.ensureFontLoaded(event.commentatorsFontFamily);
     await _repository
         .updateCommentatorsFontFamily(event.commentatorsFontFamily);
     emit(state.copyWith(commentatorsFontFamily: event.commentatorsFontFamily));
+  }
+
+  Future<void> _onUpdateCommentatorsFontSize(
+    UpdateCommentatorsFontSize event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await _repository.updateCommentatorsFontSize(event.commentatorsFontSize);
+    emit(state.copyWith(commentatorsFontSize: event.commentatorsFontSize));
   }
 
   Future<void> _onUpdateShowOtzarHachochma(
@@ -186,6 +271,9 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   ) async {
     await _repository.updateDefaultRemoveNikud(event.defaultRemoveNikud);
     emit(state.copyWith(defaultRemoveNikud: event.defaultRemoveNikud));
+
+    // ניקוי קבצי per_book_settings מיותרים
+    _cleanupRedundantPerBookSettings();
   }
 
   Future<void> _onUpdateRemoveNikudFromTanach(
@@ -226,6 +314,14 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   ) async {
     await _repository.updateFacetFilteringWidth(event.facetFilteringWidth);
     emit(state.copyWith(facetFilteringWidth: event.facetFilteringWidth));
+  }
+
+  Future<void> _onUpdateCommentaryPaneWidth(
+    UpdateCommentaryPaneWidth event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await _repository.updateCommentaryPaneWidth(event.commentaryPaneWidth);
+    emit(state.copyWith(commentaryPaneWidth: event.commentaryPaneWidth));
   }
 
   Future<void> _onUpdateCopyWithHeaders(
@@ -302,6 +398,17 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       state.copyWith(
         shortcuts: Map<String, String>.unmodifiable(shortcuts),
       ),
+    );
+  }
+
+  /// ניקוי קבצי per_book_settings שהפכו למיותרים
+  void _cleanupRedundantPerBookSettings() {
+    // הרצה אסינכרונית ללא המתנה כדי לא לחסום את ה-UI
+    PerBookSettings.cleanupRedundantSettings(
+      defaultFontSize: state.fontSize,
+      defaultRemoveNikud: state.defaultRemoveNikud,
+      defaultShowSplitView:
+          Settings.getValue<bool>('key-splited-view') ?? false,
     );
   }
 }

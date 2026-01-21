@@ -6,7 +6,11 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
+import 'package:path/path.dart' as p;
+import '../settings/settings_repository.dart';
+import '../localization/localization_extension.dart';
 import '../services/data_collection_service.dart';
+import '../widgets/ad_popup_dialog.dart';
 import 'dart:io';
 
 class AboutScreen extends StatefulWidget {
@@ -15,6 +19,10 @@ class AboutScreen extends StatefulWidget {
   @override
   State<AboutScreen> createState() => _AboutScreenState();
 }
+
+// קבועים לגדלים ומרווחים
+const double _kIconSize = 16.0;
+const double _kIconTextSpacing = 8.0;
 
 class _AboutScreenState extends State<AboutScreen> {
   String? appVersion;
@@ -28,6 +36,19 @@ class _AboutScreenState extends State<AboutScreen> {
   }
 
   Widget _buildContributor(String name, String url) {
+    final hasUrl = url.isNotEmpty;
+
+    if (!hasUrl) {
+      return Text(
+        name,
+        maxLines: 1,
+        softWrap: false,
+        style: TextStyle(
+          color: Colors.grey[700],
+        ),
+      );
+    }
+
     return InkWell(
       onTap: () async {
         final uri = Uri.parse(url);
@@ -37,39 +58,48 @@ class _AboutScreenState extends State<AboutScreen> {
       },
       child: Text(
         name,
+        maxLines: 1,
+        softWrap: false,
         style: const TextStyle(
           color: Colors.blue,
-          decoration: TextDecoration.underline,
         ),
       ),
     );
   }
 
+  /// חישוב רוחב פריט לפי השם הכי ארוך ברשימה
+  double _calculateItemWidth(List<Map<String, String?>> items, {double extraPadding = 24}) {
+    if (items.isEmpty) return 0;
+
+    final longestName = items
+        .map((item) => item['name'] ?? '')
+        .reduce((a, b) => a.length > b.length ? a : b);
+
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: longestName,
+        style: const TextStyle(fontSize: 14),
+      ),
+      textDirection: TextDirection.rtl,
+    )..layout();
+
+    // רוחב = רוחב טקסט + אייקון + רווח + מרווח בטחון
+    return textPainter.width + _kIconSize + _kIconTextSpacing + extraPadding;
+  }
+
   Widget _buildDevelopersList() {
     final developers = [
-      {
-        'name': 'sivan22',
-        'url': 'https://github.com/Sivan22',
-        'description': 'יוצר התוכנה'
-      },
+      {'name': 'sivan22', 'url': 'https://github.com/Sivan22'},
       {'name': 'Y.PL.', 'url': 'https://github.com/Y-PLONI'},
       {'name': 'YOSEFTT', 'url': 'https://github.com/YOSEFTT'},
       {'name': 'zevisvei', 'url': 'https://github.com/zevisvei'},
-      {
-        'name': 'NHLOCAL',
-        'url': 'https://github.com/NHLOCAL/Shamor-Zachor',
-        'description': 'פיתוח "זכור ושמור"'
-      },
-      {
-        'name': 'evel-avalim',
-        'url': 'https://github.com/evel-avalim',
-        'description': 'פיתוח הגימטריות'
-      },
-      {
-        'name': 'userbot',
-        'url': 'https://github.com/userbot000',
-      },
+      {'name': 'evel-avalim', 'url': 'https://github.com/evel-avalim'},
+      {'name': 'userbot', 'url': 'https://github.com/userbot000'},
+      {'name': 'mosh-dvd', 'url': 'https://github.com/mosh-dvd', 'description': 'ממפתחי ממשק צורת הדף'},
+      {'name': 'NHLOCAL', 'url': 'https://github.com/NHLOCAL/Shamor-Zachor', 'description': "מפתח 'זכור ושמור'"},
     ];
+
+    final itemWidth = _calculateItemWidth(developers);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -82,9 +112,9 @@ class _AboutScreenState extends State<AboutScreen> {
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Row(
                         children: [
-                          const Icon(FluentIcons.person_24_regular,
-                              size: 16, color: Colors.grey),
-                          const SizedBox(width: 8),
+                          Icon(FluentIcons.person_24_regular,
+                              size: _kIconSize, color: Colors.grey),
+                          SizedBox(width: _kIconTextSpacing),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,16 +139,16 @@ class _AboutScreenState extends State<AboutScreen> {
         }
         // במסכים רחבים, השתמש ב-Wrap
         return Wrap(
-          spacing: 40,
+          spacing: 16,
           runSpacing: 12,
           children: developers
               .map((dev) => SizedBox(
-                    width: 220,
+                    width: itemWidth,
                     child: Row(
                       children: [
-                        const Icon(FluentIcons.person_24_regular,
-                            size: 16, color: Colors.grey),
-                        const SizedBox(width: 8),
+                        Icon(FluentIcons.person_24_regular,
+                            size: _kIconSize, color: Colors.grey),
+                        SizedBox(width: _kIconTextSpacing),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -141,6 +171,211 @@ class _AboutScreenState extends State<AboutScreen> {
               .toList(),
         );
       },
+    );
+  }
+
+  Widget _buildBookEditorsList() {
+    // מהדירים שההדירו 10 ספרים ומעלה
+    final topEditors = [
+      {
+        'name': 'י. פל',
+        'url': 'https://forum.otzaria.org/user/%D7%99.-%D7%A4%D7%9C.',
+      },
+      {
+        'name': 'האדם החושב', // האדם החושב
+        'url':
+            'https://forum.otzaria.org/user/%D7%94%D7%90%D7%93%D7%9D-%D7%94%D7%97%D7%95%D7%A9%D7%91',
+      },
+      {
+        'name': 'י. ח. מ.', // יום חדש מתחיל
+        'url':
+            'https://forum.otzaria.org/user/%D7%99%D7%95%D7%9D-%D7%97%D%93%D7%A9-%D7%9E%D7%AA%D7%97%D7%99%D7%9C',
+      },
+      {
+        'name': 'ס. כב.', // sivan22
+        'url': 'https://mitmachim.top/user/sivan22',
+      },
+      {
+        'name': 'יהודי צעיר', // יהודי צעיר
+        'url':
+            'https://forum.otzaria.org/user/%D7%99%D7%94%D7%95%D7%93%D7%99-%D7%A6%D7%A2%D7%99%D7%A8',
+      },
+      // {
+      //   'name': 'דורש טוב',  // כרגע לא רוצה
+      //   'url':
+      //       'https://forum.otzaria.org/user/%D7%93%D7%95%D7%A8%D7%A9-%D7%98%D7%95%D7%91',
+      // },
+      // {
+      //   'name': 'מ. פינק', // כרגע לא רוצה
+      // },
+      // {
+      //   'name': 'זקצ',
+      // },
+      {
+        'name': 'קטנטן', // ד. בנדל
+        'url': 'https://forum.otzaria.org/user/%D7%A7%D7%98%D7%A0%D7%98%D7%9F',
+      },
+      {
+        'name': 'ד.', // דאנציג
+        'url':
+            'https://forum.otzaria.org/user/%D7%93%D7%90%D7%A0%D7%A6%D7%99%D7%92',
+      },
+      // {
+      //   'name': 'י. אשכנזי', // כרגע לא רוצה
+      // },
+      {
+        'name': '333',
+        'url': 'https://forum.otzaria.org/user/333',
+      },
+      {
+        'name': "ט. ג.", // "טכנולוגי גו'ניור", // י. אייזנשטיין
+        'url':
+            'https://forum.otzaria.org/user/%D7%98%D7%9B%D7%A0%D7%95%D7%9C%D7%95%D7%92%D7%99-%D7%92%D7%95-%D7%A0%D7%99%D7%95%D7%A8',
+      },
+      {
+        'name': 'ה. ה.', // גאון גדול - הבל הבלים
+        'url':
+            'https://forum.otzaria.org/user/%D7%94%D7%91%D7%9C-%D7%94%D7%91%D7%9C%D7%99%D7%9D',
+      },
+    ];
+
+    // מהדירים שההדירו בין 5 ל-10 ספרים
+    final regularEditors = [
+      {
+        'name': 'מויטיו',
+        'url': 'https://mitmachim.top/user/%D7%9E%D7%95%D7%99%D7%98%D7%99%D7%95',
+      },
+      {
+        'name': 'ד. מ. א.', // דוד משה 1
+        'url':
+            'https://forum.otzaria.org/user/%D7%93%D7%95%D7%93-%D7%9E%D7%A9%D7%94-1',
+      },
+      {
+        'name': 'איש צדיק מידי', // איש צדיק מידי
+        'url':
+            'https://forum.otzaria.org/user/%D7%90%D7%99%D7%A9-%D7%A6%D7%93%D7%99%D7%A7-%D7%9E%D7%99%D7%93%D7%99',
+      },
+      {
+        'name': 'שני אנשים',
+        'url':
+            'https://forum.otzaria.org/user/%D7%A9%D7%A0%D7%99-%D7%90%D7%A0%D7%A9%D7%99%D7%9D',
+      },
+      {
+        'name': 'י. ד.', // יאיר דניאל
+        'url':
+            'https://forum.otzaria.org/user/%D7%99%D7%90%D7%99%D7%A8-%D7%93%D7%A0%D7%99%D7%90%D7%9C',
+      },
+    ];
+
+    // חישוב רוחב לפי השם הכי ארוך מכל המהדירים
+    final allEditors = [...topEditors, ...regularEditors];
+    final itemWidth = _calculateItemWidth(allEditors, extraPadding: 32);
+
+    Widget buildEditorsList(List<Map<String, String>> editors) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          // במסכים קטנים, הצג בעמודה
+          if (constraints.maxWidth < 500) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: editors
+                  .map((editor) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          children: [
+                            const Icon(FluentIcons.book_24_regular,
+                                size: _kIconSize, color: Colors.grey),
+                            const SizedBox(width: _kIconTextSpacing),
+                            Expanded(
+                              child: _buildContributor(
+                                  editor['name']!, editor['url'] ?? ''),
+                            ),
+                          ],
+                        ),
+                      ))
+                  .toList(),
+            );
+          }
+          // במסכים רחבים, השתמש ב-Wrap
+          return Wrap(
+            spacing: 16,
+            runSpacing: 12,
+            children: editors
+                .map((editor) => SizedBox(
+                      width: itemWidth,
+                      child: Row(
+                        children: [
+                          const Icon(FluentIcons.book_24_regular,
+                              size: _kIconSize, color: Colors.grey),
+                          const SizedBox(width: _kIconTextSpacing),
+                          Expanded(
+                            child: _buildContributor(
+                                editor['name']!, editor['url'] ?? ''),
+                          ),
+                        ],
+                      ),
+                    ))
+                .toList(),
+          );
+        },
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // קטגוריה ראשונה: 10 ספרים ומעלה
+        Text(
+          'מהדירים שההדירו 10 ספרים ומעלה',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[700],
+          ),
+        ),
+        const SizedBox(height: 12),
+        buildEditorsList(topEditors),
+        const SizedBox(height: 24),
+
+        // קטגוריה שנייה: 5-10 ספרים
+        Text(
+          'מהדירים שההדירו בין 5 ל-10 ספרים',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[700],
+          ),
+        ),
+        const SizedBox(height: 12),
+        buildEditorsList(regularEditors),
+        const SizedBox(height: 16),
+
+        // הודעה בסוף הרשימה
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.blue.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              const Icon(FluentIcons.info_24_regular,
+                  size: 18, color: Colors.blue),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'באם גם אתם ערכתם ספרים ושמכם אינו מופיע ברשימה, וכן אם אתם מעוניינים בשינוי כלשהו,\nאנא פנו למייל המערכת',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[700],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -414,7 +649,7 @@ class _AboutScreenState extends State<AboutScreen> {
   }
 
   Future<String?> _getOtzariaSitePath() async {
-    final libraryPath = Settings.getValue('key-library-path');
+    final libraryPath = Settings.getValue(SettingsRepository.keyLibraryPath);
     if (libraryPath == null || libraryPath.isEmpty) return null;
 
     // התיקייה otzaria-site נמצאת באותה תיקייה שבה נמצא "גירסת ספריה.txt"
@@ -431,7 +666,7 @@ class _AboutScreenState extends State<AboutScreen> {
     if (sitePath == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('לא נמצאה תיקיית otzaria-site')),
+        SnackBar(content: Text(context.tr('dirNotFound'))),
       );
       return;
     }
@@ -440,7 +675,7 @@ class _AboutScreenState extends State<AboutScreen> {
     if (!await htmlFile.exists()) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('הקובץ $fileName לא נמצא')),
+        SnackBar(content: Text(context.trFormat('fileNotFound', [fileName]))),
       );
       return;
     }
@@ -460,7 +695,7 @@ class _AboutScreenState extends State<AboutScreen> {
       builder: (dialogContext) => Directionality(
         textDirection: TextDirection.rtl,
         child: AlertDialog(
-          title: const Text('יומן שינויים'),
+          title: Text(context.tr('changelogTitle')),
           content: SizedBox(
             width: 600,
             height: 400,
@@ -471,10 +706,114 @@ class _AboutScreenState extends State<AboutScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('סגור'),
+              child: Text(context.tr('close_')),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _showLibraryChangelogDialog(BuildContext context) async {
+    final libraryPath = Settings.getValue<String>(SettingsRepository.keyLibraryPath) ?? '';
+    if (libraryPath.isEmpty) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('נתיב הספרייה לא מוגדר')),
+      );
+      return;
+    }
+
+    final changelogPath = p.join(libraryPath, 'אוצריא', 'אודות התוכנה', 'עדכוני ספריה.md');
+    final file = File(changelogPath);
+
+    String changelog;
+    if (await file.exists()) {
+      changelog = await file.readAsString();
+    } else {
+      changelog = 'קובץ יומן השינויים לא נמצא';
+    }
+
+    if (!context.mounted) return;
+    showDialog(
+      context: context,
+      builder: (dialogContext) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: Text(context.tr('changelogLibrary')),
+          content: SizedBox(
+            width: 600,
+            height: 400,
+            child: Markdown(
+              data: changelog,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(context.tr('close_')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSupportCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(FluentIcons.shield_task_24_filled,
+                  color: Colors.blue, size: 24),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'אוצריא מתגייסת לעזרת לומדי התורה',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'קווי חירום וארגוני סיוע ללומדי תורה',
+            style: TextStyle(fontSize: 14),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  barrierDismissible: true,
+                  builder: (context) => const AdPopupDialog(
+                    title: 'אוצריא מתגייסת לעזרת לומדי התורה',
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+              icon: const Icon(FluentIcons.shield_task_24_filled, size: 18),
+              label: Text(context.tr('clickDetails')),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -485,8 +824,7 @@ class _AboutScreenState extends State<AboutScreen> {
       decoration: BoxDecoration(
         color: Colors.grey[600]!.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: Colors.grey[600]!.withValues(alpha: 0.3)),
+        border: Border.all(color: Colors.grey[600]!.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -538,9 +876,11 @@ class _AboutScreenState extends State<AboutScreen> {
                         width: 18,
                         height: 18,
                         errorBuilder: (context, error, stackTrace) =>
-                            const Icon(FluentIcons.payment_24_regular, size: 18),
+                            const Icon(FluentIcons.payment_24_regular,
+                                size: 18),
                       ),
-                      label: const Text('נדרים+', style: TextStyle(fontSize: 12)),
+                      label:
+                          Text(context.tr('נדרים+'), style: TextStyle(fontSize: 12)),
                     ),
                     const SizedBox(height: 8),
                     ElevatedButton.icon(
@@ -550,8 +890,9 @@ class _AboutScreenState extends State<AboutScreen> {
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      icon: const Icon(FluentIcons.payment_24_regular, size: 18),
-                      label: const Text('אחר', style: TextStyle(fontSize: 12)),
+                      icon:
+                          const Icon(FluentIcons.payment_24_regular, size: 18),
+                      label: Text(context.tr('אחר'), style: TextStyle(fontSize: 12)),
                     ),
                   ],
                 );
@@ -578,9 +919,11 @@ class _AboutScreenState extends State<AboutScreen> {
                         width: 18,
                         height: 18,
                         errorBuilder: (context, error, stackTrace) =>
-                            const Icon(FluentIcons.payment_24_regular, size: 18),
+                            const Icon(FluentIcons.payment_24_regular,
+                                size: 18),
                       ),
-                      label: const Text('נדרים+', style: TextStyle(fontSize: 12)),
+                      label:
+                          Text(context.tr('נדרים+'), style: TextStyle(fontSize: 12)),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -592,8 +935,9 @@ class _AboutScreenState extends State<AboutScreen> {
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      icon: const Icon(FluentIcons.payment_24_regular, size: 18),
-                      label: const Text('אחר', style: TextStyle(fontSize: 12)),
+                      icon:
+                          const Icon(FluentIcons.payment_24_regular, size: 18),
+                      label: Text(context.tr('אחר'), style: TextStyle(fontSize: 12)),
                     ),
                   ),
                 ],
@@ -630,97 +974,120 @@ class _AboutScreenState extends State<AboutScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                  // סמל וכותרת משנה
-                  Row(
+                // סמל וכותרת משנה
+                Row(
+                  children: [
+                    Image.asset(
+                      'assets/icon/icon.png',
+                      width: 80,
+                      height: 80,
+                    ),
+                    const SizedBox(width: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'אוצריא',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'מאגר תורני חינמי',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // תיאור התוכנה
+                const Text(
+                  'מאגר תורני רחב עם ממשק מודרני ומהיר, לשימוש במחשב אישי או במכשיר הנייד, ללימוד תורה בקלות ובנוחות בכל מקום.',
+                  style: TextStyle(
+                    fontSize: 16,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // כארדים תורמים
+                const Text(
+                  'תורמים',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildMemorialCardsRow(),
+                const SizedBox(height: 32),
+
+                // רשימת מפתחים
+                const Text(
+                  'מפתחים',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildDevelopersList(),
+                const SizedBox(height: 32),
+
+                // רשימת מהדירי ספרים
+                const Text(
+                  'מהדירי ספרים',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildBookEditorsList(),
+                const SizedBox(height: 32),
+
+                // פרטים טכניים
+                const Text(
+                  'פרטים טכניים',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildTechnicalDetails(),
+                const SizedBox(height: 16),
+
+                // כפתור יומן שינויים
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
-                      Image.asset(
-                        'assets/icon/icon.png',
-                        width: 80,
-                        height: 80,
+                      ElevatedButton.icon(
+                        onPressed: () => _showChangelogDialog(context),
+                        icon: const Icon(FluentIcons.history_24_regular),
+                        label: Text(context.tr('changelogSoftware')),
                       ),
-                      const SizedBox(width: 16),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'אוצריא',
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            'מאגר תורני חינמי',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
+                      ElevatedButton.icon(
+                        onPressed: () => _showLibraryChangelogDialog(context),
+                        icon: const Icon(FluentIcons.library_24_regular),
+                        label: Text(context.tr('changelogLibrary')),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-
-                  // תיאור התוכנה
-                  const Text(
-                    'מאגר תורני רחב עם ממשק מודרני ומהיר, לשימוש במחשב אישי או במכשיר הנייד, ללימוד תורה בקלות ובנוחות בכל מקום.',
-                    style: TextStyle(
-                      fontSize: 16,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // כארדים תורמים
-                  const Text(
-                    'תורמים',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildMemorialCardsRow(),
-                  const SizedBox(height: 32),
-
-                  // רשימת מפתחים
-                  const Text(
-                    'מפתחים',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildDevelopersList(),
-                  const SizedBox(height: 32),
-
-                  // פרטים טכניים
-                  const Text(
-                    'פרטים טכניים',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildTechnicalDetails(),
-                  const SizedBox(height: 16),
-
-                  // כפתור יומן שינויים
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _showChangelogDialog(context),
-                      icon: const Icon(FluentIcons.history_24_regular),
-                      label: const Text('יומן שינויים'),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
+        ),
 
         // כארד צדדי - מצד שמאל
         SizedBox(
@@ -735,6 +1102,18 @@ class _AboutScreenState extends State<AboutScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _buildSupportCard(context),
+                    const SizedBox(height: 20),
+                    _buildActionCard(
+                      title: 'אודות התוכנה',
+                      description:
+                          'מידע נוסף על התוכנה, תכונות, ומדריכים לשימוש.',
+                      buttonText: 'אודות התוכנה',
+                      icon: FluentIcons.info_24_regular,
+                      color: Colors.grey[600]!,
+                      onTap: () => _openLocalHtmlFile('index.html'),
+                    ),
+                    const SizedBox(height: 20),
                     _buildActionCard(
                       title: 'הצטרף לפיתוח!',
                       description:
@@ -774,6 +1153,9 @@ class _AboutScreenState extends State<AboutScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // כרטיס אוצריא מתגייסת
+          _buildSupportCard(context),
+          const SizedBox(height: 24),
           // סמל וכותרת
           _buildHeader(),
           const SizedBox(height: 16),
@@ -786,6 +1168,15 @@ class _AboutScreenState extends State<AboutScreen> {
           const SizedBox(height: 24),
 
           // כארדים של פעולות (למעלה במסכים קטנים)
+          _buildActionCard(
+            title: 'אודות התוכנה',
+            description: 'מידע נוסף על התוכנה, תכונות, ומדריכים לשימוש.',
+            buttonText: 'אודות התוכנה',
+            icon: FluentIcons.info_24_regular,
+            color: Colors.grey[600]!,
+            onTap: () => _openLocalHtmlFile('index.html'),
+          ),
+          const SizedBox(height: 16),
           _buildActionCard(
             title: 'הצטרף לפיתוח!',
             description:
@@ -828,6 +1219,15 @@ class _AboutScreenState extends State<AboutScreen> {
           _buildDevelopersList(),
           const SizedBox(height: 24),
 
+          // מהדירי ספרים
+          const Text(
+            'מהדירי ספרים',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          _buildBookEditorsList(),
+          const SizedBox(height: 24),
+
           // פרטים טכניים
           const Text(
             'פרטים טכניים',
@@ -838,13 +1238,21 @@ class _AboutScreenState extends State<AboutScreen> {
           const SizedBox(height: 16),
 
           // כפתור יומן שינויים
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => _showChangelogDialog(context),
-              icon: const Icon(FluentIcons.history_24_regular),
-              label: const Text('יומן שינויים'),
-            ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ElevatedButton.icon(
+                onPressed: () => _showChangelogDialog(context),
+                icon: const Icon(FluentIcons.history_24_regular),
+                label: Text(context.tr('יומן שינויים בתוכנה')),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => _showLibraryChangelogDialog(context),
+                icon: const Icon(FluentIcons.library_24_regular),
+                label: Text(context.tr('יומן שינויים בספרייה')),
+              ),
+            ],
           ),
         ],
       ),

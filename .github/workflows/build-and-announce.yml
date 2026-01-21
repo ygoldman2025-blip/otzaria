@@ -3,15 +3,6 @@ name: "Build, Release and Announce"
 permissions:
   contents: write
 
-on:
-  push:
-    branches:
-      - main
-      - dev
-      - MTDB+dev
-
-  pull_request:
-    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
   # טריגר לפרסום בלבד
@@ -32,7 +23,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: '3.35.7'
           cache: true
 
       # - name: Install Rust (stable)
@@ -126,13 +117,36 @@ jobs:
           $ErrorActionPreference = "Stop"
           
           try {
-            $downloadUrl = "https://github.com/Y-PLONI/otzaria-library/releases/download/latest/otzaria_latest.zip"
-            Write-Host "Downloading from: $downloadUrl"
+            # קבלת מידע על ה-release האחרון דרך GitHub API
+            $latestRelease = Invoke-RestMethod -Uri "https://api.github.com/repos/Y-PLONI/otzaria-library/releases/latest"
+            $zipAsset = $latestRelease.assets | Where-Object { $_.name -eq "otzaria_latest.zip" }
             
-            Invoke-WebRequest -Uri $downloadUrl -OutFile "otzaria_latest.zip" -UseBasicParsing
+            if (-not $zipAsset) {
+              Write-Host "::error::Could not find otzaria_latest.zip in latest release"
+              exit 1
+            }
             
-            $fileSize = (Get-Item "otzaria_latest.zip").Length
-            Write-Host "Library ZIP downloaded successfully. Size: $([math]::Round($fileSize / 1MB, 2)) MB"
+            Write-Host "Library version: $($latestRelease.tag_name)"
+            Write-Host "Downloading from: $($zipAsset.browser_download_url)"
+            Write-Host "Size: $([math]::Round($zipAsset.size / 1MB, 2)) MB"
+            
+            # הורדת הקובץ עם תמיכה בקבצים גדולים
+            $ProgressPreference = 'SilentlyContinue'  # מאיץ את ההורדה
+            Invoke-WebRequest -Uri $zipAsset.browser_download_url -OutFile "otzaria_latest.zip" -UseBasicParsing
+            Write-Host "Library ZIP downloaded successfully"
+            
+            # חילוץ הקבצים לתיקיית installer\library_files
+            Write-Host "Extracting library files to installer\library_files..."
+            if (Test-Path "installer\library_files") {
+              Remove-Item -Path "installer\library_files" -Recurse -Force
+            }
+            New-Item -ItemType Directory -Path "installer\library_files" -Force | Out-Null
+            Expand-Archive -Path "otzaria_latest.zip" -DestinationPath "installer\library_files" -Force
+            Write-Host "Library files extracted successfully"
+            
+            # מחיקת קובץ ה-ZIP לפינוי מקום
+            Remove-Item -Path "otzaria_latest.zip" -Force
+            Write-Host "Cleaned up ZIP file"
           }
           catch {
             Write-Host "::error::Failed to download library: $_"
@@ -161,6 +175,14 @@ jobs:
           if ("${{ steps.check_version.outputs.is_version }}" -eq "true") {
             Write-Host "Building FULL installer with library and VC++ Redistributable (version tag detected)..."
             & "$env:ISCC" installer\otzaria_full.iss
+            
+            # ניקוי קבצי הספרייה המחולצים לאחר בניית ה-FULL installer
+            Write-Host "Cleaning up extracted library files to free disk space..."
+            if (Test-Path "installer\library_files") {
+              Remove-Item -Path "installer\library_files" -Recurse -Force
+              Write-Host "Library files cleaned up successfully"
+            }
+            
             Write-Host "Building REGULAR installer (without VC++ Redistributable)..."
             & "$env:ISCC" installer\otzaria.iss
           } else {
@@ -199,7 +221,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: '3.35.7'
           cache: true
 
       - name: Install Rust (stable) with rustup
@@ -374,11 +396,23 @@ jobs:
       - name: Clone repository
         uses: actions/checkout@v4
 
+      - name: Free up disk space
+        run: |
+          echo "Disk space before cleanup:"
+          df -h
+          # מחיקת קבצים מיותרים כדי לפנות מקום
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          echo "Disk space after cleanup:"
+          df -h
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
-          cache: true
+          flutter-version: '3.35.7'
+          cache: false  # השבתת cache כדי למנוע בעיות מקום
       
       - run: sudo apt install ninja-build
       
@@ -386,12 +420,26 @@ jobs:
         run: |
           flutter pub get
           flutter build apk
+          # ניקוי מיידי של קבצים מיותרים מהבנייה (לא ה-APK הסופי)
+          rm -rf build/app/intermediates || true
+          rm -rf build/app/.transforms || true
+          echo "Disk space after intermediate cleanup:"
+          df -h
       
       - name: Upload apk
         uses: actions/upload-artifact@v4
         with:
           name: otzaria-android.apk
           path: build/app/outputs/flutter-apk/app-release.apk
+      
+      - name: Final cleanup
+        if: always()
+        run: |
+          # ניקוי סופי של כל קבצי build וcache
+          rm -rf build || true
+          rm -rf ~/.gradle/caches || true
+          echo "Disk space after final cleanup:"
+          df -h
 
   build_macos:
     if: github.event_name != 'release'
@@ -407,7 +455,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: '3.35.7'
           cache: true
 
       # התקנת Rust יציבה לפני flutter build
@@ -433,18 +481,56 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Build Flutter macOS app
+      - name: Build Flutter macOS app (Universal Binary)
         run: |
-          flutter build macos
+          # Build Universal Binary that supports both Intel (x86_64) and Apple Silicon (arm64)
+          flutter build macos --release
 
-      - name: Upload macos build
+      - name: Verify Universal Binary
+        run: |
+          APP_PATH="build/macos/Build/Products/Release/otzaria.app/Contents/MacOS/otzaria"
+          if [ -f "$APP_PATH" ]; then
+            echo "Checking architectures in binary:"
+            lipo -info "$APP_PATH" || file "$APP_PATH"
+          else
+            echo "Warning: Binary not found at expected path"
+            find build/macos/Build/Products/Release -name "otzaria" -o -name "*.app"
+          fi
+
+      - name: Create DMG installer
+        run: |
+          # Install create-dmg if not available
+          if ! command -v create-dmg &> /dev/null; then
+            brew install create-dmg
+          fi
+          
+          APP_NAME="otzaria"
+          APP_PATH="build/macos/Build/Products/Release/${APP_NAME}.app"
+          DMG_NAME="${APP_NAME}-macos.dmg"
+          
+          # Create DMG with drag-to-Applications shortcut
+          create-dmg \
+            --volname "Otzaria Installer" \
+            --volicon "${APP_PATH}/Contents/Resources/AppIcon.icns" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "${APP_NAME}.app" 175 190 \
+            --hide-extension "${APP_NAME}.app" \
+            --app-drop-link 425 190 \
+            --no-internet-enable \
+            "${DMG_NAME}" \
+            "${APP_PATH}" \
+            || hdiutil create -volname "Otzaria" -srcfolder "${APP_PATH}" -ov -format UDZO "${DMG_NAME}"
+
+      - name: Upload macOS DMG
         uses: actions/upload-artifact@v4
         with:
-          name: otzaria-macos.app
-          path: build/macos/Build/Products/Release
+          name: otzaria-macos.dmg
+          path: otzaria-macos.dmg
 
   create_release:
-    if: github.event_name != 'release'
+    if: "!cancelled() && github.event_name != 'release'"
     needs: [build_windows, build_linux, build_android, build_macos]
     runs-on: ubuntu-latest
 
@@ -529,11 +615,9 @@ jobs:
             cp artifacts/otzaria-android.apk/*.apk release-files/ || true
           fi
           
-          # macOS app 
-          if [ -d "artifacts/otzaria-macos.app" ]; then
-          cd artifacts/otzaria-macos.app
-          zip -r ../../release-files/otzaria-macos.zip *
-          cd ../..
+          # macOS DMG
+          if [ -d "artifacts/otzaria-macos.dmg" ]; then
+            cp artifacts/otzaria-macos.dmg/*.dmg release-files/ || true
           fi
           
           # List files for debugging
@@ -541,7 +625,7 @@ jobs:
           ls -la release-files/
       
       - name: Create Release
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v1
         with:
           token: ${{ secrets.GH_RELEASE_TOKEN }}
@@ -557,7 +641,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
   create_pr_prerelease:
-    if: github.event_name == 'pull_request' 
+    if: "!cancelled() && github.event_name == 'pull_request'"
     needs: [build_windows, build_linux, build_android, build_macos]
     runs-on: ubuntu-latest
 
@@ -621,11 +705,9 @@ jobs:
             cp artifacts/otzaria-android.apk/*.apk release-files/ || true
           fi
           
-          # macOS app 
-          if [ -d "artifacts/otzaria-macos.app" ]; then
-          cd artifacts/otzaria-macos.app
-          zip -r ../../release-files/otzaria-macos.zip *
-          cd ../..
+          # macOS DMG
+          if [ -d "artifacts/otzaria-macos.dmg" ]; then
+            cp artifacts/otzaria-macos.dmg/*.dmg release-files/ || true
           fi
           
           # List files for debugging

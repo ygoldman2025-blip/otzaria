@@ -11,6 +11,7 @@ import 'package:otzaria/navigation/bloc/navigation_bloc.dart';
 import 'package:otzaria/navigation/bloc/navigation_state.dart';
 import 'package:otzaria/tabs/models/searching_tab.dart';
 import 'package:otzaria/search/view/search_options_dropdown.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 class EnhancedSearchField extends StatefulWidget {
   final dynamic widget;
@@ -50,14 +51,12 @@ class _EnhancedSearchFieldState extends State<EnhancedSearchField> {
 
   @override
   void deactivate() {
-    debugPrint('⏸️ EnhancedSearchField deactivating - clearing overlays');
     _hideSearchOptionsOverlay();
     super.deactivate();
   }
 
   @override
   void dispose() {
-    debugPrint('🗑️ EnhancedSearchField disposing');
     _hideSearchOptionsOverlay();
     widget.tab.queryController.removeListener(_onTextChanged);
     widget.tab.searchFieldFocusNode.removeListener(_onCursorPositionChanged);
@@ -108,9 +107,6 @@ class _EnhancedSearchFieldState extends State<EnhancedSearchField> {
       // החזרת מיקום הסמן אחרי העדכון
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          debugPrint(
-            'DEBUG: Restoring cursor position in update: ${currentSelection.baseOffset}',
-          );
           widget.tab.queryController.selection = currentSelection;
         }
       });
@@ -321,7 +317,6 @@ class _EnhancedSearchFieldState extends State<EnhancedSearchField> {
       listeners: [
         BlocListener<NavigationBloc, NavigationState>(
           listener: (context, state) {
-            debugPrint('🔄 Navigation changed to: ${state.currentScreen}');
             // סגירת מגירת האפשרויות כשמשנים מסך
             if (_searchOptionsOverlay != null) {
               _hideSearchOptionsOverlay();
@@ -371,18 +366,9 @@ class _EnhancedSearchFieldState extends State<EnhancedSearchField> {
                         }
                       }
                     },
-                    child: TextField(
-                      key: _textFieldKey,
+                    child: RtlTextField(
                       focusNode: widget.tab.searchFieldFocusNode,
                       controller: widget.tab.queryController,
-                      onTap: () {
-                        // עדכון המגירה כשלוחצים בשדה הטקסט
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (_searchOptionsOverlay != null) {
-                            _updateSearchOptionsOverlay();
-                          }
-                        });
-                      },
                       onChanged: (text) {
                         // עדכון המגירה כשהטקסט משתנה
                         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -396,7 +382,7 @@ class _EnhancedSearchFieldState extends State<EnhancedSearchField> {
                       },
                       decoration: InputDecoration(
                         border: const OutlineInputBorder(),
-                        hintText: "חפש כאן..",
+                        hintText: "חפש כאן...",
                         labelText: "לחיפוש הקש אנטר או לחץ על סמל החיפוש",
                         prefixIcon: IconButton(
                           onPressed: _performSearch,

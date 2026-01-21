@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:flutter/services.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -10,6 +11,7 @@ import 'package:otzaria/indexing/bloc/indexing_bloc.dart';
 import 'package:otzaria/indexing/bloc/indexing_state.dart';
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/utils/open_book.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 class FindRefDialog extends StatefulWidget {
   const FindRefDialog({super.key});
@@ -28,6 +30,16 @@ class _FindRefDialogState extends State<FindRefDialog> {
     super.initState();
     if (context.read<IndexingBloc>().state is IndexingInProgress) {
       showIndexWarning = true;
+    }
+
+    // בחירת הטקסט הקיים כאשר חוזרים למסך
+    // מבוצע מיד ולא ב-postFrameCallback כדי למנוע אובדן פוקוס באנדרואיד
+    final controller = context.read<FocusRepository>().findRefSearchController;
+    if (controller.text.isNotEmpty) {
+      controller.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: controller.text.length,
+      );
     }
   }
 
@@ -74,6 +86,7 @@ class _FindRefDialogState extends State<FindRefDialog> {
               ),
             ),
             IconButton(
+                focusNode: FocusNode(skipTraversal: true),
                 onPressed: () => setState(() => showIndexWarning = false),
                 icon: const Icon(FluentIcons.dismiss_24_regular))
           ],
@@ -104,7 +117,8 @@ class _FindRefDialogState extends State<FindRefDialog> {
                 final refs = state is FindRefSuccess ? state.refs : [];
                 return Focus(
                   onKeyEvent: (node, event) {
-                    if (event is! KeyDownEvent) {
+                    // טיפול גם ב-KeyDownEvent וגם ב-KeyRepeatEvent (לחיצה רצופה)
+                    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
                       return KeyEventResult.ignored;
                     }
 
@@ -129,7 +143,7 @@ class _FindRefDialogState extends State<FindRefDialog> {
                     }
                     return KeyEventResult.ignored;
                   },
-                  child: TextField(
+                  child: RtlTextField(
                     focusNode: focusRepository.findRefSearchFocusNode,
                     autofocus: true,
                     decoration: InputDecoration(
@@ -243,7 +257,7 @@ class _FindRefDialogState extends State<FindRefDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('סגור'),
+          child: Text(context.tr('close_')),
         ),
       ],
     );

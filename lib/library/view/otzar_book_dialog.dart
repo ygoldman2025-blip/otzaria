@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import '../../models/books.dart';
 import '../../utils/otzar_utils.dart';
@@ -116,7 +117,7 @@ class OtzarBookDialog extends StatelessWidget {
         if (canLaunchLocally && bookExists)
           ElevatedButton.icon(
             icon: const Icon(FluentIcons.desktop_24_regular),
-            label: const Text('פתח מקומית'),
+            label: Text(context.tr('פתח מקומית')),
             onPressed: () {
               Navigator.of(context).pop();
               OtzarUtils.launchOtzarLocal(book.id);
@@ -128,7 +129,7 @@ class OtzarBookDialog extends StatelessWidget {
           ),
         ElevatedButton.icon(
           icon: const Icon(FluentIcons.open_24_regular),
-          label: const Text('פתח באתר'),
+          label: Text(context.tr('פתח באתר')),
           onPressed: () async {
             final errorColor = Theme.of(context).colorScheme.error;
             Navigator.of(context).pop();
@@ -149,7 +150,7 @@ class OtzarBookDialog extends StatelessWidget {
           style: TextButton.styleFrom(
             foregroundColor: Theme.of(context).colorScheme.secondary,
           ),
-          child: const Text('סגור'),
+          child: Text(context.tr('close_')),
         ),
       ],
     );

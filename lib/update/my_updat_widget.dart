@@ -2,12 +2,14 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
+import 'package:otzaria/settings/settings_repository.dart';
 import 'package:updat/updat.dart';
 import 'package:updat/updat_window_manager.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'hebrew_updat_widgets.dart';
+import 'linux_installer.dart';
 
 /// סוג ההתקנה המוגדר בזמן build (אופציונלי)
 /// להגדרה: --dart-define=INSTALL_KIND=msix/exe/zip
@@ -58,6 +60,10 @@ Widget _hebrewFlatChipAutoHideError({
   if (status == UpdatStatus.error) {
     Future.delayed(const Duration(seconds: 3), dismissUpdate);
   }
+  
+  // Wrap launchInstaller for Linux
+  final wrappedLaunchInstaller = wrapLinuxInstaller(launchInstaller, 'otzaria');
+  
   return hebrewFlatChip(
     context: context,
     latestVersion: latestVersion,
@@ -66,7 +72,7 @@ Widget _hebrewFlatChipAutoHideError({
     checkForUpdate: checkForUpdate,
     openDialog: openDialog,
     startUpdate: startUpdate,
-    launchInstaller: launchInstaller,
+    launchInstaller: wrappedLaunchInstaller,
     dismissUpdate: dismissUpdate,
   );
 }
@@ -77,8 +83,10 @@ class MyUpdatWidget extends StatelessWidget {
   final Widget child;
   @override
   Widget build(BuildContext context) {
-    // Don't show update widget in debug mode
-    if (kDebugMode) {
+    // Don't show update widget in debug mode or offline mode
+    final isOfflineMode =
+        Settings.getValue<bool>(SettingsRepository.keyOfflineMode) ?? false;
+    if (kDebugMode || isOfflineMode) {
       return child;
     }
 

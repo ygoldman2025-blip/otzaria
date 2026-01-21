@@ -9,7 +9,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_single_instance/flutter_single_instance.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
@@ -43,20 +42,29 @@ import 'package:otzaria/app_bloc_observer.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/data/data_providers/hive_data_provider.dart';
 import 'package:otzaria/personal_notes/bloc/personal_notes_bloc.dart';
-import 'package:otzaria/personal_notes/bloc/personal_notes_event.dart';
+import 'package:otzaria/personal_notes/migration/file_to_db_migrator.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:search_engine/search_engine.dart';
 import 'package:otzaria/core/app_paths.dart';
 import 'package:otzaria/core/window_listener.dart';
+import 'package:otzaria/core/window_persistence.dart';
 import 'package:shamor_zachor/providers/shamor_zachor_data_provider.dart';
 import 'package:shamor_zachor/providers/shamor_zachor_progress_provider.dart';
 import 'package:shamor_zachor/services/shamor_zachor_service_factory.dart';
 import 'package:shamor_zachor/services/dynamic_data_loader_service.dart';
 import 'package:otzaria/utils/toc_parser.dart';
 import 'package:otzaria/settings/backup_service.dart';
+import 'package:otzaria/services/sources_books_service.dart';
+import 'package:pdfrx/pdfrx.dart';
+import 'package:otzaria/services/notification_service.dart';
+import 'package:otzaria/utils/url_handler_service.dart';
+import 'package:otzaria/utils/simple_single_instance.dart';
 
 // Global reference to window listener for cleanup
 AppWindowListener? _appWindowListener;
+
+/// Getter for accessing the window listener from other parts of the app
+AppWindowListener? get appWindowListener => _appWindowListener;
 
 // Global reference to the dynamic data loader service for Shamor Zachor
 DynamicDataLoaderService? _shamorZachorDataLoader;
@@ -67,7 +75,8 @@ DynamicDataLoaderService? _shamorZachorDataLoader;
 /// 1. Ensures Flutter bindings are initialized
 /// 2. Calls [initialize] to set up required services and configurations
 /// 3. Launches the main application widget
-void main() async {
+/// 4. Handles URL scheme arguments if provided
+void main(List<String> args) async {
   // write errors to file
   FlutterError.onError = (FlutterErrorDetails details) {
     if (kDebugMode) {
@@ -93,12 +102,62 @@ void main() async {
 
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Check for single instance
-  FlutterSingleInstance flutterSingleInstance = FlutterSingleInstance();
-  bool isFirstInstance = await flutterSingleInstance.isFirstInstance();
-  if (!isFirstInstance) {
-    // If not the first instance, exit the app
-    exit(0);
+  // pdfrx warning suppression: this only hides the debug-time warning message.
+  // It does not change the actual asset bundling (see pdfrx remove_wasm_modules).
+  pdfrxFlutterInitialize(dismissPdfiumWasmWarnings: true);
+
+  // Handle URL scheme arguments first
+  String? initialUrl;
+  debugPrint('Command line arguments: $args');
+  
+  // Find URL argument - check both --url= prefix and direct otzaria:// URL
+  for (final arg in args) {
+    if (arg.startsWith('--url=')) {
+      initialUrl = arg.substring(6); // Remove '--url=' prefix
+      debugPrint('Found URL argument: $initialUrl');
+      break;
+    } else if (arg.startsWith('otzaria://')) {
+      initialUrl = arg;
+      debugPrint('Found direct URL argument: $initialUrl');
+      break;
+    }
+  }
+
+  // Check for single instance using our simple implementation
+  if (!Platform.isMacOS && !Platform.isIOS) {
+    try {
+      debugPrint('SimpleSingleInstance: Starting single instance check...');
+      bool isFirstInstance = await SimpleSingleInstance.isFirstInstance();
+      debugPrint('SimpleSingleInstance check: isFirstInstance = $isFirstInstance');
+      
+      if (!isFirstInstance) {
+        debugPrint('This is not the first instance');
+        // If not the first instance and we have a URL, write it to a file for the running instance
+        if (initialUrl != null) {
+          debugPrint('Second instance with URL: $initialUrl - writing to file and waiting for processing');
+          await SimpleSingleInstance.writeUrlForRunningInstance(initialUrl);
+          
+          // Wait for the first instance to process the URL (indicated by file deletion)
+          // Use handshake protocol instead of fixed delay
+          await SimpleSingleInstance.waitForUrlProcessing();
+          
+          debugPrint('Second instance: URL processed by first instance, exiting now');
+        } else {
+          debugPrint('Second instance without URL - exiting');
+        }
+        exit(0);
+      } else {
+        debugPrint('This is the first instance - creating lock');
+        await SimpleSingleInstance.createLock();
+        debugPrint('Lock created successfully');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('WARNING: Single instance check failed: $e');
+      debugPrint('Stack trace: $stackTrace');
+      debugPrint('Continuing with app launch - multiple instances may run simultaneously');
+      // Continue anyway if single instance check fails
+      // This is acceptable as it's better to allow the app to run than to fail completely
+    }
   }
 
   // Initialize bloc observer for debugging
@@ -111,6 +170,8 @@ void main() async {
   // No-op: removed verbose debug printing
 
   final historyRepository = HistoryRepository();
+
+  debugPrint('Creating App with initialUrl: $initialUrl');
 
   runApp(
     MultiRepositoryProvider(
@@ -150,8 +211,7 @@ void main() async {
                   findRefRepository: FindRefRepository(
                       dataRepository: DataRepository.instance))),
           BlocProvider<PersonalNotesBloc>(
-            create: (context) =>
-                PersonalNotesBloc()..add(const ConvertLegacyNotes()),
+            create: (context) => PersonalNotesBloc(),
           ),
           BlocProvider<BookmarkBloc>(
             create: (context) => BookmarkBloc(BookmarkRepository()),
@@ -177,7 +237,7 @@ void main() async {
             create: (context) => ShamorZachorProgressProvider(),
           ),
         ],
-        child: const App(),
+        child: App(initialUrl: initialUrl),
       ),
     ),
   );
@@ -210,6 +270,7 @@ Future<void> initialize() async {
     windowManager.addListener(_appWindowListener!);
 
     windowManager.waitUntilReadyToShow(windowOptions, () async {
+      await WindowPersistence.restoreIfAny();
       await windowManager.show();
       await windowManager.focus();
     });
@@ -220,6 +281,18 @@ Future<void> initialize() async {
   await initHive();
   await createDirs();
   await loadCerts();
+  
+  // Migrate personal notes from file storage to SQLite database
+  await FileToDbMigrator.runMigration();
+
+  // נדרש לטעינת PDF דרך pdfrx: הגדרת תקיית cache
+  try {
+    final cacheDir = await getTemporaryDirectory();
+    Pdfrx.getCacheDirectory = () => cacheDir.path;
+    debugPrint('Pdfrx cache directory set to: ${cacheDir.path}');
+  } catch (e) {
+    debugPrint('Failed to set Pdfrx cache directory: $e');
+  }
 
   // Initialize Shamor Zachor dynamic data loader
   try {
@@ -244,6 +317,34 @@ Future<void> initialize() async {
       debugPrint('Failed to perform automatic backup: $e');
     }
     // Continue without backup if it fails
+  }
+
+  // Load SourcesBooks.csv data into memory
+  try {
+    await SourcesBooksService().loadSourcesBooks();
+  } catch (e) {
+    if (kDebugMode) {
+      debugPrint('Failed to load SourcesBooks.csv: $e');
+    }
+    // Continue without sources data if it fails
+  }
+
+  // Initialize Notification Service
+  try {
+    await NotificationService().init();
+  } catch (e) {
+    if (kDebugMode) {
+      debugPrint('Failed to initialize notification service: $e');
+    }
+  }
+
+  // Initialize URL Handler Service
+  try {
+    await UrlHandlerService.initialize();
+  } catch (e) {
+    if (kDebugMode) {
+      debugPrint('Failed to initialize URL handler service: $e');
+    }
   }
 }
 
@@ -285,6 +386,12 @@ Future<void> loadCerts() async {
 /// Clean up resources when the app is closing
 void cleanup() {
   _appWindowListener?.dispose();
+
+  // Clear SourcesBooks data from memory
+  SourcesBooksService().clearData();
+  
+  // Clean up single instance lock
+  SimpleSingleInstance.cleanup();
 }
 
 // Note: TOC parsing helper moved to lib/utils/toc_parser.dart for reuse

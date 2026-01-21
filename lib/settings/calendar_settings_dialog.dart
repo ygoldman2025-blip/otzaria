@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/navigation/calendar_cubit.dart';
 import 'package:otzaria/settings/settings_repository.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 /// פונקציה גלובלית להצגת דיאלוג הגדרות לוח שנה
 /// ניתן לקרוא לה מכל מקום באפליקציה
@@ -60,7 +62,7 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
       bloc: widget.calendarCubit,
       builder: (context, state) {
         return AlertDialog(
-          title: const Text('הגדרות לוח שנה'),
+          title: Text(context.tr('הגדרות לוח שנה')),
           content: SizedBox(
             width: 400,
             child: SingleChildScrollView(
@@ -151,6 +153,59 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
                           )
                         : const SizedBox.shrink(),
                   ),
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'התראות:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  SwitchListTile(
+                    title: Text(context.tr('הפעל התראות על אירועים')),
+                    value: state.calendarNotificationsEnabled,
+                    onChanged: (value) {
+                      widget.calendarCubit
+                          .changeCalendarNotificationsEnabled(value);
+                    },
+                  ),
+                  if (state.calendarNotificationsEnabled)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 16.0, left: 16.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SwitchListTile(
+                            title: Text(context.tr('השמע צליל בהתראה')),
+                            value: state.calendarNotificationSound,
+                            onChanged: (value) {
+                              widget.calendarCubit
+                                  .changeCalendarNotificationSound(value);
+                            },
+                          ),
+                          DropdownButtonFormField<int>(
+                            decoration: const InputDecoration(
+                              labelText: 'זמן תזכורת לפני האירוע',
+                            ),
+                            initialValue: state.calendarNotificationTime,
+                            items: const [
+                              DropdownMenuItem(value: 60, child: Text('שעה')),
+                              DropdownMenuItem(
+                                  value: 720, child: Text('12 שעות')),
+                              DropdownMenuItem(value: 1440, child: Text('יום')),
+                              DropdownMenuItem(
+                                  value: 2880, child: Text('יומיים')),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) {
+                                widget.calendarCubit
+                                    .changeCalendarNotificationTime(value);
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -158,7 +213,7 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('סגור'),
+              child: Text(context.tr('close_')),
             ),
           ],
         );
@@ -183,7 +238,7 @@ class _CitySearchWidget extends StatefulWidget {
 
 class _CitySearchWidgetState extends State<_CitySearchWidget> {
   final TextEditingController _searchController = TextEditingController();
-  late Map<String, Map<String, Map<String, double>>> _filteredCities;
+  late Map<String, Map<String, Map<String, dynamic>>> _filteredCities;
 
   @override
   void initState() {
@@ -261,7 +316,7 @@ class _CitySearchWidgetState extends State<_CitySearchWidget> {
         children: [
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: TextField(
+            child: RtlTextField(
               controller: _searchController,
               autofocus: true,
               decoration: const InputDecoration(

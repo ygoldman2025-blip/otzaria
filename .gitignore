@@ -18,6 +18,9 @@ migrate_working_dir/
 *.iws
 .idea/
 
+# Visual Studio related
+.vs/
+
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
 # is commented out by default.
@@ -34,6 +37,7 @@ migrate_working_dir/
 build/
 windows
 macos/
+!macos/Runner/*.entitlements
 ios/
 .dart_tool
 web/
@@ -55,11 +59,23 @@ app.*.map.json
 
 .git/
 .vscode/
-android/
+.kiro/
+android/.gradle/
+android/.idea/
+android/local.properties
+android/captures/
+android/gradle/
+android/gradlew
+android/gradlew.bat
+android/app/.cxx/
+android/app/google-services.json
 build/
 fonts/
 
-installer/otzaria-0.9.71-windows.exe
-installer/otzaria-0.9.71-windows-full.exe
+installer/otzaria-0.9.74-windows.exe
+installer/otzaria-0.9.74-windows-full.exe
 pubspec.lock
 flutter/
+
+seforim.db
+

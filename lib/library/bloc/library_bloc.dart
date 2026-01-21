@@ -8,6 +8,8 @@ import 'package:otzaria/data/data_providers/tantivy_data_provider.dart';
 import 'package:otzaria/data/repository/data_repository.dart';
 import 'package:otzaria/library/models/library.dart';
 import 'package:otzaria/models/books.dart';
+import 'package:otzaria/services/sources_books_service.dart';
+import 'package:otzaria/settings/settings_repository.dart';
 
 class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
   final DataRepository _repository = DataRepository.instance;
@@ -82,7 +84,7 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
       // שמירת המיקום הנוכחי בספרייה
       final currentCategoryPath = _getCurrentCategoryPath(state.currentCategory);
       
-      final libraryPath = Settings.getValue<String>('key-library-path');
+      final libraryPath = Settings.getValue<String>(SettingsRepository.keyLibraryPath);
       if (libraryPath != null) {
         FileSystemData.instance.libraryPath = libraryPath;
       }
@@ -90,6 +92,14 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
       // רענון הספרייה מהמערכת קבצים
       DataRepository.instance.library = FileSystemData.instance.getLibrary();
       final library = await _repository.library;
+      
+      // טעינה מחדש של נתוני SourcesBooks.csv
+      try {
+        await SourcesBooksService().loadSourcesBooks();
+        developer.log('SourcesBooks.csv reloaded successfully', name: 'LibraryBloc');
+      } catch (e) {
+        developer.log('Warning: Could not reload SourcesBooks.csv', name: 'LibraryBloc', error: e);
+      }
       
       try {
         TantivyDataProvider.instance.reopenIndex();
@@ -162,14 +172,38 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
   ) async {
     emit(state.copyWith(isLoading: true));
     try {
-      await Settings.setValue<String>('key-library-path', event.path);
+      await Settings.setValue<String>(SettingsRepository.keyLibraryPath, event.path);
       FileSystemData.instance.libraryPath = event.path;
       DataRepository.instance.library = FileSystemData.instance.getLibrary();
+      
+      // טעינה מחדש של נתוני SourcesBooks.csv
+      try {
+        await SourcesBooksService().loadSourcesBooks();
+        developer.log('SourcesBooks.csv reloaded after path change', name: 'LibraryBloc');
+      } catch (e) {
+        developer.log('Warning: Could not reload SourcesBooks.csv', name: 'LibraryBloc', error: e);
+      }
+      
+      // פתיחה מחדש של אינדקס החיפוש
+      try {
+        TantivyDataProvider.instance.reopenIndex();
+      } catch (e) {
+        developer.log('Warning: Could not reopen search index', name: 'LibraryBloc', error: e);
+      }
+      
       final library = await _repository.library;
+      
+      // בחירת הספר הראשון לתצוגה מקדימה
+      final firstBook = _getFirstTextBook(library);
+      
       emit(state.copyWith(
         library: library,
         currentCategory: library,
         isLoading: false,
+        previewBook: firstBook,
+        searchResults: null,
+        searchQuery: null,
+        selectedTopics: null,
       ));
     } catch (e) {
       emit(state.copyWith(
@@ -186,11 +220,31 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
     emit(state.copyWith(isLoading: true));
     try {
       await Settings.setValue<String>('key-hebrew-books-path', event.path);
+      
+      // רענון הספרייה כדי לטעון את הספרים החדשים
+      DataRepository.instance.library = FileSystemData.instance.getLibrary();
+      
+      // טעינה מחדש של נתוני SourcesBooks.csv
+      try {
+        await SourcesBooksService().loadSourcesBooks();
+        developer.log('SourcesBooks.csv reloaded after hebrew books path change', name: 'LibraryBloc');
+      } catch (e) {
+        developer.log('Warning: Could not reload SourcesBooks.csv', name: 'LibraryBloc', error: e);
+      }
+      
       final library = await _repository.library;
+      
+      // בחירת הספר הראשון לתצוגה מקדימה
+      final firstBook = _getFirstTextBook(library);
+      
       emit(state.copyWith(
         library: library,
         currentCategory: library,
         isLoading: false,
+        previewBook: firstBook,
+        searchResults: null,
+        searchQuery: null,
+        selectedTopics: null,
       ));
     } catch (e) {
       emit(state.copyWith(
@@ -257,8 +311,19 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
         includeHebrewBooks: event.showHebrewBooks ?? false,
       );
 
+      // בחירת הספר הראשון מתוצאות החיפוש לתצוגה מקדימה
+      Book? firstBook;
+      if (results.isNotEmpty) {
+        // העדפה לספר טקסט על פני PDF
+        firstBook = results.firstWhere(
+          (book) => book is TextBook,
+          orElse: () => results.first,
+        );
+      }
+
       emit(state.copyWith(
         searchResults: results,
+        previewBook: firstBook,
       ));
     } catch (e) {
       emit(state.copyWith(
@@ -272,7 +337,28 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
     SelectTopics event,
     Emitter<LibraryState> emit,
   ) {
-    emit(state.copyWith(selectedTopics: event.topics));
+    // כשמשנים את הנושאים, צריך לעדכן את הספר המוצג
+    // אם יש תוצאות חיפוש, נבחר את הספר הראשון מהרשימה המסוננת
+    Book? firstBook;
+    if (state.searchResults != null && state.searchResults!.isNotEmpty) {
+      final filteredResults = event.topics.isEmpty
+          ? state.searchResults!
+          : state.searchResults!.where((book) {
+              return event.topics.any((topic) => book.topics.contains(topic));
+            }).toList();
+      
+      if (filteredResults.isNotEmpty) {
+        firstBook = filteredResults.firstWhere(
+          (book) => book is TextBook,
+          orElse: () => filteredResults.first,
+        );
+      }
+    }
+    
+    emit(state.copyWith(
+      selectedTopics: event.topics,
+      previewBook: firstBook,
+    ));
   }
 
   void _onSelectBookForPreview(

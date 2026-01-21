@@ -8,6 +8,7 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/utils/ref_helper.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 class TocViewer extends StatefulWidget {
   const TocViewer({
@@ -125,75 +126,182 @@ class _TocViewerState extends State<TocViewer>
   }
 
   Widget _buildFilteredList(List<TocEntry> entries, BuildContext context) {
-    List<TocEntry> allEntries = [];
-    void getAllEntries(List<TocEntry> entries) {
+    List<TocEntry> matchingEntries = [];
+
+    void findMatchingEntries(List<TocEntry> entries) {
       for (final TocEntry entry in entries) {
-        allEntries.add(entry);
-        getAllEntries(entry.children);
+        // דילוג על רמה 1 (כותרת ראשית של הספר) כדי למנוע התאמות שגויות
+        // לאותיות שמופיעות בשם הספר
+        if (entry.level > 1 && entry.text.contains(searchController.text)) {
+          matchingEntries.add(entry);
+        }
+        findMatchingEntries(entry.children);
       }
     }
 
-    getAllEntries(entries);
-    allEntries = allEntries
-        .where((e) => e.text.contains(searchController.text))
-        .toList();
+    findMatchingEntries(entries);
 
     return ListView.builder(
         physics: const NeverScrollableScrollPhysics(),
         shrinkWrap: true,
-        itemCount: allEntries.length,
+        itemCount: matchingEntries.length,
         itemBuilder: (context, index) {
-          final entry = allEntries[index];
-          return InkWell(
-            onTap: () {
-              setState(() {
-                _isManuallyScrolling = false;
-                _lastScrolledTocIndex = null;
-              });
-              widget.scrollController.scrollTo(
-                index: entry.index,
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.ease,
-              );
-              if (Platform.isAndroid) {
-                widget.closeLeftPaneCallback();
-              }
-            },
-            child: Container(
-              padding: EdgeInsets.only(
-                right: 16.0 + (entry.level * 24.0),
-                left: 16.0,
-                top: 10.0,
-                bottom: 10.0,
-              ),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: Theme.of(context).dividerColor,
-                    width: 0.5,
-                  ),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    FluentIcons.text_bullet_list_24_regular,
-                    color: Theme.of(context).colorScheme.secondary,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      entry.fullText,
-                      style: const TextStyle(
-                        fontSize: 14,
+          final entry = matchingEntries[index];
+
+          // אם לכותרת יש ילדים, הצג אותה עם אפשרות לפתוח/לסגור
+          if (entry.children.isNotEmpty) {
+            final bool isExpanded = _expanded[entry.index] ?? false;
+
+            return Column(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: Theme.of(context).dividerColor,
+                        width: 0.5,
                       ),
                     ),
                   ),
-                ],
+                  child: Row(
+                    children: [
+                      // אזור הטקסט לניווט
+                      Expanded(
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              _isManuallyScrolling = false;
+                              _lastScrolledTocIndex = null;
+                            });
+                            widget.scrollController.scrollTo(
+                              index: entry.index,
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.ease,
+                            );
+                            if (Platform.isAndroid) {
+                              widget.closeLeftPaneCallback();
+                            }
+                          },
+                          child: Container(
+                            padding: EdgeInsets.only(
+                              right: 16.0 + (entry.level * 24.0),
+                              left: 8.0,
+                              top: 10.0,
+                              bottom: 10.0,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  entry.level == 1
+                                      ? FluentIcons.book_24_regular
+                                      : FluentIcons.text_bullet_list_24_regular,
+                                  color: entry.level == 1
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context).colorScheme.secondary,
+                                  size: entry.level == 1 ? 20 : 18,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    entry.fullText,
+                                    style: TextStyle(
+                                      fontSize: entry.level == 1 ? 15 : 14,
+                                      fontWeight: entry.level == 1
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      // כפתור החץ לפתיחה/סגירה
+                      InkWell(
+                        onTap: () {
+                          setState(() {
+                            _expanded[entry.index] = !isExpanded;
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.only(
+                            left: 16.0,
+                            right: 8.0,
+                            top: 10.0,
+                            bottom: 10.0,
+                          ),
+                          child: Icon(
+                            isExpanded
+                                ? FluentIcons.chevron_up_24_regular
+                                : FluentIcons.chevron_down_24_regular,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // הצג את הילדים אם הכותרת פתוחה
+                if (isExpanded)
+                  ...entry.children.map((child) => _buildTocItem(child)),
+              ],
+            );
+          } else {
+            // כותרת ללא ילדים - הצג כרגיל
+            return InkWell(
+              onTap: () {
+                setState(() {
+                  _isManuallyScrolling = false;
+                  _lastScrolledTocIndex = null;
+                });
+                widget.scrollController.scrollTo(
+                  index: entry.index,
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.ease,
+                );
+                if (Platform.isAndroid) {
+                  widget.closeLeftPaneCallback();
+                }
+              },
+              child: Container(
+                padding: EdgeInsets.only(
+                  right: 16.0 + (entry.level * 24.0),
+                  left: 16.0,
+                  top: 10.0,
+                  bottom: 10.0,
+                ),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: Theme.of(context).dividerColor,
+                      width: 0.5,
+                    ),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      FluentIcons.text_bullet_list_24_regular,
+                      color: Theme.of(context).colorScheme.secondary,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        entry.fullText,
+                        style: const TextStyle(
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          );
+            );
+          }
         });
   }
 
@@ -204,6 +312,7 @@ class _TocViewerState extends State<TocViewer>
         _isManuallyScrolling = false;
         _lastScrolledTocIndex = null;
       });
+      // תמיד השתמש ב-scrollController - זה עובד גם בצורת הדף
       widget.scrollController.scrollTo(
         index: entry.index,
         duration: const Duration(milliseconds: 250),
@@ -228,7 +337,7 @@ class _TocViewerState extends State<TocViewer>
               ((state.selectedIndex != null &&
                       state.selectedIndex == entry.index) ||
                   autoIndex == entry.index);
-          
+
           return InkWell(
             onTap: navigateToEntry,
             child: Container(
@@ -265,8 +374,11 @@ class _TocViewerState extends State<TocViewer>
                       entry.text,
                       style: TextStyle(
                         fontSize: 14,
-                        fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight:
+                            selected ? FontWeight.w600 : FontWeight.normal,
                       ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
                     ),
                   ),
                 ],
@@ -294,59 +406,92 @@ class _TocViewerState extends State<TocViewer>
                           state.selectedIndex == entry.index) ||
                       autoIndex == entry.index);
 
-              return InkWell(
-                onTap: () {
-                  setState(() {
-                    _expanded[entry.index] = !isExpanded;
-                  });
-                },
-                child: Container(
-                  padding: EdgeInsets.only(
-                    right: 16.0 + (entry.level * 24.0),
-                    left: 16.0,
-                    top: 12.0,
-                    bottom: 12.0,
-                  ),
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? Theme.of(context)
-                            .colorScheme
-                            .primaryContainer
-                            .withValues(alpha: 0.3)
-                        : null,
-                    border: Border(
-                      bottom: BorderSide(
-                        color: Theme.of(context).dividerColor,
-                        width: 0.5,
-                      ),
+              return Container(
+                decoration: BoxDecoration(
+                  color: selected
+                      ? Theme.of(context)
+                          .colorScheme
+                          .primaryContainer
+                          .withValues(alpha: 0.3)
+                      : null,
+                  border: Border(
+                    bottom: BorderSide(
+                      color: Theme.of(context).dividerColor,
+                      width: 0.5,
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        FluentIcons.book_24_regular,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          showFullText ? entry.fullText : entry.text,
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: Theme.of(context).colorScheme.primary,
+                ),
+                child: Row(
+                  children: [
+                    // אזור הטקסט לניווט
+                    Expanded(
+                      child: InkWell(
+                        onTap: navigateToEntry,
+                        child: Container(
+                          padding: EdgeInsets.only(
+                            right: 16.0 + (entry.level * 24.0),
+                            left: 8.0,
+                            top: 12.0,
+                            bottom: 12.0,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                // רק רמה 1 מקבלת אייקון ספר, שאר הרמות מקבלות רשימה
+                                entry.level == 1
+                                    ? FluentIcons.book_24_regular
+                                    : FluentIcons.text_bullet_list_24_regular,
+                                color: entry.level == 1
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context).colorScheme.secondary,
+                                size: entry.level == 1 ? 20 : 18,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  showFullText ? entry.fullText : entry.text,
+                                  style: TextStyle(
+                                    fontSize: entry.level == 1 ? 15 : 14,
+                                    fontWeight: entry.level == 1
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                    color: entry.level == 1
+                                        ? Theme.of(context).colorScheme.primary
+                                        : null,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 2,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                      Icon(
-                        isExpanded
-                            ? FluentIcons.chevron_up_24_regular
-                            : FluentIcons.chevron_down_24_regular,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    // כפתור החץ לפתיחה/סגירה
+                    InkWell(
+                      onTap: () {
+                        setState(() {
+                          _expanded[entry.index] = !isExpanded;
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.only(
+                          left: 16.0,
+                          right: 8.0,
+                          top: 12.0,
+                          bottom: 12.0,
+                        ),
+                        child: Icon(
+                          isExpanded
+                              ? FluentIcons.chevron_up_24_regular
+                              : FluentIcons.chevron_down_24_regular,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          size: 20,
+                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               );
             },
@@ -390,7 +535,7 @@ class _TocViewerState extends State<TocViewer>
               children: [
                 Padding(
                   padding: const EdgeInsets.all(8.0),
-                  child: TextField(
+                  child: RtlTextField(
                     controller: searchController,
                     onChanged: (value) => setState(() {}),
                     focusNode: widget.focusNode,

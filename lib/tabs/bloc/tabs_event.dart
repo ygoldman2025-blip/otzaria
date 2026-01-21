@@ -17,6 +17,16 @@ class AddTab extends TabsEvent {
   List<Object?> get props => [tab];
 }
 
+class ReplaceAllTabs extends TabsEvent {
+  final List<OpenedTab> tabs;
+  final int currentTabIndex;
+
+  const ReplaceAllTabs(this.tabs, this.currentTabIndex);
+
+  @override
+  List<Object?> get props => [tabs, currentTabIndex];
+}
+
 class SaveTabs extends TabsEvent {
   const SaveTabs();
 
@@ -84,3 +94,42 @@ class NavigateToNextTab extends TabsEvent {}
 class NavigateToPreviousTab extends TabsEvent {}
 
 class LoadTabs extends TabsEvent {}
+
+class TogglePinTab extends TabsEvent {
+  final OpenedTab tab;
+
+  const TogglePinTab(this.tab);
+
+  @override
+  List<Object?> get props => [tab];
+}
+
+class EnableSideBySideMode extends TabsEvent {
+  final OpenedTab rightTab;
+  final OpenedTab leftTab;
+
+  const EnableSideBySideMode({
+    required this.rightTab,
+    required this.leftTab,
+  });
+
+  @override
+  List<Object?> get props => [rightTab, leftTab];
+}
+
+class DisableSideBySideMode extends TabsEvent {
+  const DisableSideBySideMode();
+}
+
+class UpdateSplitRatio extends TabsEvent {
+  final double ratio;
+
+  const UpdateSplitRatio(this.ratio);
+
+  @override
+  List<Object?> get props => [ratio];
+}
+
+class SwapSideBySideTabs extends TabsEvent {
+  const SwapSideBySideTabs();
+}

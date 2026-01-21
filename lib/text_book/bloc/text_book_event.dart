@@ -13,6 +13,8 @@ class LoadContent extends TextBookEvent {
   final bool removeNikud;
   final bool preserveState; // Whether to preserve current state during reload
   final bool loadCommentators; // Whether to load commentators
+  final bool
+      forceCloseLeftPane; // Force close left pane (for side-by-side mode)
 
   const LoadContent({
     required this.fontSize,
@@ -20,10 +22,18 @@ class LoadContent extends TextBookEvent {
     required this.removeNikud,
     this.preserveState = false, // Default to false for backward compatibility
     this.loadCommentators = true, // Default to true for backward compatibility
+    this.forceCloseLeftPane = false, // Default to false
   });
 
   @override
-  List<Object?> get props => [fontSize, showSplitView, removeNikud, preserveState, loadCommentators];
+  List<Object?> get props => [
+        fontSize,
+        showSplitView,
+        removeNikud,
+        preserveState,
+        loadCommentators,
+        forceCloseLeftPane
+      ];
 }
 
 class UpdateFontSize extends TextBookEvent {
@@ -48,6 +58,24 @@ class ToggleSplitView extends TextBookEvent {
   final bool show;
 
   const ToggleSplitView(this.show);
+
+  @override
+  List<Object?> get props => [show];
+}
+
+class ToggleTzuratHadafView extends TextBookEvent {
+  final bool show;
+
+  const ToggleTzuratHadafView(this.show);
+
+  @override
+  List<Object?> get props => [show];
+}
+
+class TogglePageShapeView extends TextBookEvent {
+  final bool show;
+
+  const TogglePageShapeView(this.show);
 
   @override
   List<Object?> get props => [show];
@@ -123,6 +151,33 @@ class UpdateSearchText extends TextBookEvent {
 
   @override
   List<Object?> get props => [text];
+}
+
+class UpdateSectionSpecificHighlight extends TextBookEvent {
+  final String? text;
+  final int? index;
+  final bool fullSection;
+
+  const UpdateSectionSpecificHighlight(this.text, this.index, {this.fullSection = false});
+
+  @override
+  List<Object?> get props => [text, index, fullSection];
+}
+
+class UpdateSectionSpecificHighlightError extends TextBookEvent {
+  final String searchText;
+
+  const UpdateSectionSpecificHighlightError(this.searchText);
+
+  @override
+  List<Object?> get props => [searchText];
+}
+
+class MarkErrorMessageShown extends TextBookEvent {
+  const MarkErrorMessageShown();
+
+  @override
+  List<Object?> get props => [];
 }
 
 class CreateNoteFromToolbar extends TextBookEvent {

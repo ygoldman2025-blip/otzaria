@@ -13,9 +13,9 @@ import 'package:otzaria/core/app_paths.dart';
 class TantivyDataProvider {
   /// Instance of the search engine pointing to the index directory
   late Future<SearchEngine> engine;
-  late ReferenceSearchEngine refEngine;
+  late Future<ReferenceSearchEngine> refEngine;
 
-  static final TantivyDataProvider _singleton = TantivyDataProvider();
+  static final TantivyDataProvider _singleton = TantivyDataProvider._internal();
   static TantivyDataProvider instance = _singleton;
 
   // Global cache for facet counts
@@ -40,66 +40,50 @@ class TantivyDataProvider {
   /// Maintains a list of processed books to avoid reindexing
   late List<String> booksDone = [];
 
-  TantivyDataProvider() {
-    reopenIndex();
+  TantivyDataProvider._internal() {
+    // Initialize engine immediately in constructor to avoid LateInitializationError
+    engine = _initEngine();
+    refEngine = _initRefEngine();
+    _loadBooksDone();
   }
 
-  void reopenIndex() async {
+  Future<SearchEngine> _initEngine() async {
     String indexPath = await AppPaths.getIndexPath();
+    return SearchEngine(path: indexPath);
+  }
+
+  Future<ReferenceSearchEngine> _initRefEngine() async {
     String refIndexPath = await AppPaths.getRefIndexPath();
-
-    engine = Future.value(SearchEngine(path: indexPath));
-
     try {
-      refEngine = ReferenceSearchEngine(path: refIndexPath);
+      return ReferenceSearchEngine(path: refIndexPath);
     } catch (e) {
-      if (e.toString() ==
-          "PanicException(Failed to create index: SchemaError(\"An index exists but the schema does not match.\"))") {
-        resetIndex(indexPath);
-        reopenIndex();
-      } else {
-        rethrow;
+      if (e.toString().contains("SchemaError")) {
+        await resetIndex(refIndexPath, closeBooksDoneBox: false);
+        return ReferenceSearchEngine(path: refIndexPath);
       }
+      rethrow;
     }
-    //test the engine
-    engine.then((value) {
-      try {
-        // Test the search engine
-        value
-            .search(
-                regexTerms: ['a'],
-                limit: 10,
-                slop: 0,
-                maxExpansions: 10,
-                facets: ["/"],
-                order: ResultsOrder.catalogue)
-            .then((results) {
-          // Engine test successful
-        }).catchError((e) {
-          // Log engine test error
-        });
-      } catch (e) {
-        // Log sync engine test error
-        if (e.toString() ==
-            "PanicException(Failed to create index: SchemaError(\"An index exists but the schema does not match.\"))") {
-          resetIndex(indexPath);
-          reopenIndex();
-        } else {
-          rethrow;
-        }
-      }
-    });
+  }
+
+  Future<void> _loadBooksDone() async {
     try {
+      String indexPath = await AppPaths.getIndexPath();
       booksDone = Hive.box(
         name: 'books_indexed',
-        directory: await AppPaths.getIndexPath(),
+        directory: indexPath,
       )
           .get('key-books-done', defaultValue: [])
           .map<String>((e) => e.toString())
-          .toList() as List<String>;
+          .toList();
     } catch (e) {
       booksDone = [];
     }
+  }
+
+  void reopenIndex() {
+    engine = _initEngine();
+    refEngine = _initRefEngine();
+    _loadBooksDone();
   }
 
   /// Persists the list of indexed books to disk using Hive storage.
@@ -173,9 +157,11 @@ class TantivyDataProvider {
     }
   }
 
-  Future<void> resetIndex(String indexPath) async {
+  Future<void> resetIndex(String indexPath, {bool closeBooksDoneBox = true}) async {
     Directory indexDirectory = Directory(indexPath);
-    Hive.box(name: 'books_indexed', directory: indexPath).close();
+    if (closeBooksDoneBox) {
+      Hive.box(name: 'books_indexed', directory: indexPath).close();
+    }
     indexDirectory.deleteSync(recursive: true);
     indexDirectory.createSync(recursive: true);
   }
@@ -199,7 +185,8 @@ class TantivyDataProvider {
 
   Future<List<ReferenceSearchResult>> searchRefs(
       String reference, int limit, bool fuzzy) async {
-    return refEngine.search(
+    final engine = await refEngine;
+    return engine.search(
         query: reference,
         limit: limit,
         fuzzy: fuzzy,
@@ -283,7 +270,7 @@ class TantivyDataProvider {
     isIndexing.value = false;
     final index = await engine;
     await index.clear();
-    final refIndex = refEngine;
+    final refIndex = await refEngine;
     await refIndex.clear();
     booksDone.clear();
     await saveBooksDoneToDisk();

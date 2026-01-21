@@ -1,7 +1,11 @@
 // דוגמה לשימוש ב-SearchConfiguration החדש
+import 'package:otzaria/localization/localization_extension.dart';
 // קובץ זה מראה איך להשתמש בהגדרות החיפוש המרוכזות
+import 'package:otzaria/localization/localization_extension.dart';
 
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/search/bloc/search_bloc.dart';
 import 'package:otzaria/search/bloc/search_event.dart';
@@ -77,36 +81,36 @@ class RegexSettingsPanel extends StatelessWidget {
                 Text('הגדרות רגקס:',
                     style: Theme.of(context).textTheme.titleMedium),
                 SwitchListTile(
-                  title: const Text('הפעל חיפוש רגקס'),
+                  title: Text(context.tr('הפעל חיפוש רגקס')),
                   value: config.regexEnabled,
                   onChanged: (_) =>
                       context.read<SearchBloc>().add(ToggleRegex()),
                 ),
                 if (config.regexEnabled) ...[
                   SwitchListTile(
-                    title: const Text('רגיש לאותיות גדולות/קטנות'),
-                    subtitle: const Text('אם כבוי, A ו-a נחשבים זהים'),
+                    title: Text(context.tr('רגיש לאותיות גדולות/קטנות')),
+                    subtitle: Text(context.tr('אם כבוי, A ו-a נחשבים זהים')),
                     value: config.caseSensitive,
                     onChanged: (_) =>
                         context.read<SearchBloc>().add(ToggleCaseSensitive()),
                   ),
                   SwitchListTile(
-                    title: const Text('מצב מרובה שורות'),
-                    subtitle: const Text('^ ו-\$ מתייחסים לתחילת/סוף שורה'),
+                    title: Text(context.tr('מצב מרובה שורות')),
+                    subtitle: Text(context.tr('^ ו-\$ מתייחסים לתחילת/סוף שורה')),
                     value: config.multiline,
                     onChanged: (_) =>
                         context.read<SearchBloc>().add(ToggleMultiline()),
                   ),
                   SwitchListTile(
-                    title: const Text('נקודה כוללת הכל'),
-                    subtitle: const Text('. כולל גם תווי שורה חדשה'),
+                    title: Text(context.tr('נקודה כוללת הכל')),
+                    subtitle: Text(context.tr('. כולל גם תווי שורה חדשה')),
                     value: config.dotAll,
                     onChanged: (_) =>
                         context.read<SearchBloc>().add(ToggleDotAll()),
                   ),
                   SwitchListTile(
-                    title: const Text('תמיכה ביוניקוד'),
-                    subtitle: const Text('תמיכה מלאה בתווי יוניקוד'),
+                    title: Text(context.tr('תמיכה ביוניקוד')),
+                    subtitle: Text(context.tr('תמיכה מלאה בתווי יוניקוד')),
                     value: config.unicode,
                     onChanged: (_) =>
                         context.read<SearchBloc>().add(ToggleUnicode()),

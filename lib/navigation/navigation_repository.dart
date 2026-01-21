@@ -1,15 +1,34 @@
 import 'dart:io';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
+import 'package:otzaria/settings/settings_repository.dart';
 
 class NavigationRepository {
   bool checkLibraryIsEmpty() {
-    final libraryPath = Settings.getValue<String>('key-library-path');
+    final libraryPath = Settings.getValue<String>(SettingsRepository.keyLibraryPath);
     if (libraryPath == null) {
       return true;
     }
 
+    // בדיקה שהתיקייה הראשית קיימת
+    final rootDir = Directory(libraryPath);
+    if (!rootDir.existsSync()) {
+      return true;
+    }
+
+    // בדיקה שתיקיית אוצריא קיימת
     final libraryDir = Directory('$libraryPath${Platform.pathSeparator}אוצריא');
-    if (!libraryDir.existsSync() || libraryDir.listSync().isEmpty) {
+    if (!libraryDir.existsSync()) {
+      return true;
+    }
+
+    // בדיקה שהתיקייה לא ריקה
+    try {
+      final contents = libraryDir.listSync();
+      if (contents.isEmpty) {
+        return true;
+      }
+    } catch (e) {
+      // אם יש שגיאה בגישה לתיקייה, נחשיב אותה כריקה
       return true;
     }
 

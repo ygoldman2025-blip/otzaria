@@ -1,9 +1,13 @@
 import 'dart:async';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'dart:isolate';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:otzaria/constants/fonts.dart';
 
 import '../../bloc/text_book_bloc.dart';
 import '../../bloc/text_book_event.dart';
@@ -12,8 +16,9 @@ import '../services/preview_renderer.dart';
 import '../models/editor_settings.dart';
 import 'package:otzaria/data/data_providers/file_system_data_provider.dart';
 import 'package:otzaria/core/scaffold_messenger.dart';
-import 'package:otzaria/widgets/confirmation_dialog.dart';
+import 'package:otzaria/widgets/dialogs.dart';
 import 'markdown_toolbar.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 /// Full-screen dialog for editing text sections with split-pane interface
 ///
@@ -325,6 +330,14 @@ class _TextSectionEditorDialogState extends State<TextSectionEditorDialog> {
             // Open search dialog
             _showSearchDialog();
             return true;
+          case LogicalKeyboardKey.keyZ:
+            // Undo
+            _undo();
+            return true;
+          case LogicalKeyboardKey.keyY:
+            // Redo
+            _redo();
+            return true;
         }
       } else if (event.logicalKey == LogicalKeyboardKey.escape) {
         _discardChanges();
@@ -373,6 +386,17 @@ class _TextSectionEditorDialogState extends State<TextSectionEditorDialog> {
   void _undo() {
     if (_undoIndex > 0) {
       _undoIndex--;
+      _isUndoRedoOperation = true;
+      _textController.text = _undoStack[_undoIndex];
+      _textController.selection = _undoSelectionStack[_undoIndex];
+      _previewContent = _undoStack[_undoIndex];
+      _isUndoRedoOperation = false;
+    }
+  }
+
+  void _redo() {
+    if (_undoIndex < _undoStack.length - 1) {
+      _undoIndex++;
       _isUndoRedoOperation = true;
       _textController.text = _undoStack[_undoIndex];
       _textController.selection = _undoSelectionStack[_undoIndex];
@@ -516,12 +540,12 @@ class _TextSectionEditorDialogState extends State<TextSectionEditorDialog> {
             TextButton.icon(
               onPressed: _hasUnsavedChanges ? _save : null,
               icon: const Icon(FluentIcons.save_24_regular),
-              label: const Text('שמור'),
+              label: Text(context.tr('שמור')),
             ),
             TextButton.icon(
               onPressed: _saveAndClose,
               icon: const Icon(FluentIcons.save_arrow_right_24_regular),
-              label: const Text('שמור וצא'),
+              label: Text(context.tr('שמור וצא')),
             ),
           ],
         ),
@@ -580,7 +604,8 @@ class _TextSectionEditorDialogState extends State<TextSectionEditorDialog> {
               onCode: () => _wrapSelection('<code>', '</code>'),
               onQuote: () => _wrapSelection('<blockquote>', '</blockquote>'),
               onUndo: _undo,
-              onRedo: () {/* TODO: Implement redo */},
+              onRedo: _redo,
+              /* TODO: Implement more */
               onSearch: _showSearchDialog,
               hasLinksFile: widget.hasLinksFile,
             ),
@@ -606,9 +631,9 @@ class _TextSectionEditorDialogState extends State<TextSectionEditorDialog> {
                         textDirection: TextDirection.rtl,
                         textAlign: TextAlign.right,
                         textAlignVertical: TextAlignVertical.top,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
-                          fontFamily: 'TaameyAshkenaz',
+                          fontFamily: AppFonts.editorFont,
                           height: 1.5,
                         ),
                         decoration: const InputDecoration(
@@ -631,11 +656,11 @@ class _TextSectionEditorDialogState extends State<TextSectionEditorDialog> {
                           16), // הוספת padding גם כאן ליישור
                       child: _previewRenderer.renderPreview(
                         markdown: _previewContent,
-                        textStyle: const TextStyle(
+                        textStyle: TextStyle(
                           fontSize: 16,
-                          fontFamily: 'TaameyAshkenaz',
+                          fontFamily: AppFonts.editorFont,
                         ),
-                        fontFamily: 'TaameyAshkenaz',
+                        fontFamily: AppFonts.editorFont,
                       ),
                     ),
                   ),
@@ -680,18 +705,17 @@ class _SearchDialogState extends State<_SearchDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('חיפוש בטקסט'),
+      title: Text(context.tr('חיפוש בטקסט')),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          TextField(
+          RtlTextField(
             controller: _searchController,
             decoration: const InputDecoration(
               labelText: 'הכנס טקסט לחיפוש',
               hintText: 'מה לחפש...',
               prefixIcon: Icon(FluentIcons.search_24_regular),
             ),
-            textDirection: TextDirection.rtl,
             autofocus: true,
             onSubmitted: (_) => _performSearch(),
           ),
@@ -706,11 +730,11 @@ class _SearchDialogState extends State<_SearchDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('סגור'),
+          child: Text(context.tr('close_')),
         ),
         ElevatedButton(
           onPressed: _performSearch,
-          child: const Text('חפש'),
+          child: Text(context.tr('חפש')),
         ),
       ],
     );
@@ -751,27 +775,25 @@ class _LinkInsertDialogState extends State<_LinkInsertDialog> {
         ),
       },
       child: AlertDialog(
-        title: const Text('הוסף קישור'),
+        title: Text(context.tr('הוסף קישור')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
+            RtlTextField(
               controller: _textController,
               autofocus: true,
               decoration: const InputDecoration(
                 labelText: 'טקסט הקישור',
                 hintText: 'לחץ כאן',
               ),
-              textDirection: TextDirection.rtl,
             ),
             const SizedBox(height: 16),
-            TextField(
+            RtlTextField(
               controller: _urlController,
               decoration: const InputDecoration(
                 labelText: 'כתובת URL',
                 hintText: 'https://example.com',
               ),
-              textDirection: TextDirection.ltr,
               onSubmitted: (_) {
                 widget.onInsert(_textController.text, _urlController.text);
                 Navigator.of(context).pop();
@@ -782,14 +804,14 @@ class _LinkInsertDialogState extends State<_LinkInsertDialog> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('ביטול'),
+            child: Text(context.tr('ביטול')),
           ),
           TextButton(
             onPressed: () {
               widget.onInsert(_textController.text, _urlController.text);
               Navigator.of(context).pop();
             },
-            child: const Text('הוסף'),
+            child: Text(context.tr('הוסף')),
           ),
         ],
       ),

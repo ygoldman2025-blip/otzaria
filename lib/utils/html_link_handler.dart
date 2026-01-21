@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/data/repository/data_repository.dart';
+import 'package:otzaria/core/scaffold_messenger.dart';
 import 'package:otzaria/models/books.dart';
+import 'package:otzaria/tabs/models/tab.dart';
 import 'package:otzaria/tabs/models/text_tab.dart';
+import 'package:otzaria/tabs/models/pdf_tab.dart';
 import 'package:otzaria/text_book/bloc/text_book_bloc.dart';
 import 'package:otzaria/text_book/bloc/text_book_state.dart';
 
@@ -32,7 +35,7 @@ class HtmlLinkHandler {
   static Future<void> _handleInlineLink(
     BuildContext context,
     String url,
-    Function(TextBookTab) openBookCallback,
+    Function(OpenedTab) openBookCallback,
   ) async {
     try {
       // פענוח ה-URL ולקיחת הפרמטרים
@@ -75,23 +78,194 @@ class HtmlLinkHandler {
       openBookCallback(tab);
 
       if (context.mounted && ref.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('נפתח: $ref'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        UiSnack.show('נפתח: $ref');
       }
     } catch (e) {
       debugPrint('שגיאה בטיפול בקישור מבוסס תווים: $e');
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('לא ניתן לפתוח את הקישור: $e'),
-            duration: const Duration(seconds: 3),
-          ),
+        UiSnack.show('לא ניתן לפתוח את הקישור: $e');
+      }
+    }
+  }
+
+  /// מטפל בקישורי שיתוף (otzaria://book/ ו-otzaria://pdf/)
+  static Future<void> _handleSharingLink(
+    BuildContext context,
+    String url,
+    Function(OpenedTab) openBookCallback,
+  ) async {
+    try {
+      // Clean the URL first - handle encoding issues
+      String cleanUrl = url.trim();
+      
+      // Handle potential double encoding
+      if (cleanUrl.contains('%25')) {
+        cleanUrl = Uri.decodeComponent(cleanUrl);
+      }
+      
+      Uri uri;
+      try {
+        uri = Uri.parse(cleanUrl);
+      } catch (e) {
+        // Try to fix encoding issues
+        cleanUrl = cleanUrl.replaceAll(' ', '%20');
+        uri = Uri.parse(cleanUrl);
+      }
+      
+      final pathSegments = uri.pathSegments;
+      final isPdf = cleanUrl.startsWith('otzaria://pdf/');
+      
+      if (pathSegments.isEmpty) {
+        throw Exception('קישור לא תקין - חסר שם ספר');
+      }
+
+      // Get book title and handle encoding
+      String bookTitle = pathSegments.first;
+      
+      // Try to decode if it's still encoded
+      if (bookTitle.contains('%')) {
+        try {
+          bookTitle = Uri.decodeComponent(bookTitle);
+        } catch (e) {
+          // Failed to decode, use as-is
+        }
+      }
+      
+      final queryParams = uri.queryParameters;
+      
+      // מציאת הספר בספרייה
+      final library = await DataRepository.instance.library;
+      
+      // Look for the appropriate book type
+      final foundBook = isPdf 
+          ? library.findBookByTitle(bookTitle, PdfBook)
+          : library.findBookByTitle(bookTitle, TextBook);
+
+      if (foundBook == null) {
+        throw Exception('לא נמצא ספר בשם: $bookTitle');
+      }
+
+      if (isPdf) {
+        if (foundBook is! PdfBook) {
+          throw Exception('הספר $bookTitle אינו ספר PDF');
+        }
+
+        // Handle PDF book
+        int startPage = 1;
+        if (queryParams.containsKey('page')) {
+          final pageStr = queryParams['page'];
+          final parsedPage = int.tryParse(pageStr ?? '');
+          if (parsedPage != null && parsedPage > 0) {
+            startPage = parsedPage;
+          }
+        }
+
+        // Create PDF tab
+        final pdfTab = PdfBookTab(
+          book: foundBook,
+          pageNumber: startPage,
         );
+
+        // Call the callback with the PDF tab
+        openBookCallback(pdfTab);
+        
+        if (context.mounted) {
+          UiSnack.show('נפתח ספר PDF: $bookTitle (עמוד $startPage)');
+        }
+        
+      } else {
+        // Handle text book (existing logic)
+        if (foundBook is! TextBook) {
+          throw Exception('הספר $bookTitle אינו ספר טקסט');
+        }
+
+        // קביעת האינדקס ההתחלתי
+        int startIndex = 0;
+        if (queryParams.containsKey('index')) {
+          final indexStr = queryParams['index'];
+          final parsedIndex = int.tryParse(indexStr ?? '');
+          if (parsedIndex != null && parsedIndex >= 0) {
+            startIndex = parsedIndex;
+          }
+        }
+
+        debugPrint('HtmlLinkHandler: Creating tab for book: $bookTitle at index: $startIndex');
+
+        // קביעת הטקסט להדגשה
+        String highlightText = '';
+        bool fullSectionHighlight = false;
+        
+        if (queryParams.containsKey('text')) {
+          final highlightParam = queryParams['text'];
+          
+          debugPrint('HtmlLinkHandler: Found text parameter: "$highlightParam"');
+          
+          if (highlightParam == 'true') {
+            // Full section highlighting
+            fullSectionHighlight = true;
+            debugPrint('HtmlLinkHandler: Full section highlighting enabled');
+          } else if (highlightParam != null && highlightParam.isNotEmpty) {
+            try {
+              // Decode URL encoding including %20 for spaces
+              highlightText = Uri.decodeComponent(highlightParam);
+              
+              // Additional cleanup for common encoding issues
+              highlightText = highlightText
+                  .replaceAll('%20', ' ')  // Handle any remaining %20
+                  .replaceAll('+', ' ')    // Handle + as space
+                  .trim();
+                  
+              debugPrint('HtmlLinkHandler: Decoded highlight text: "$highlightText"');
+            } catch (e) {
+              debugPrint('HtmlLinkHandler: Failed to decode highlight text: $e');
+              // If decoding fails, use the original parameter with basic cleanup
+              highlightText = highlightParam
+                  .replaceAll('%20', ' ')
+                  .replaceAll('+', ' ')
+                  .trim();
+            }
+          }
+        }
+
+        // פתיחת הספר
+        final tab = TextBookTab(
+          book: foundBook,
+          index: startIndex,
+          highlightText: highlightText,
+          fullSectionHighlight: fullSectionHighlight,
+          openLeftPane: (Settings.getValue<bool>('key-pin-sidebar') ?? false) ||
+              (Settings.getValue<bool>('key-default-sidebar-open') ?? false),
+        );
+
+        openBookCallback(tab);
+
+        // הצגת הודעה למשתמש
+        if (context.mounted) {
+          String message;
+          if (fullSectionHighlight) {
+            message = startIndex > 0 
+              ? 'נפתח ספר: $bookTitle (מקטע $startIndex) עם הדגשת כל המקטע'
+              : 'נפתח ספר: $bookTitle עם הדגשת כל המקטע';
+          } else if (highlightText.isNotEmpty) {
+            message = startIndex > 0 
+              ? 'נפתח ספר: $bookTitle (מקטע $startIndex) עם הדגשה: $highlightText'
+              : 'נפתח ספר: $bookTitle עם הדגשה: $highlightText';
+          } else {
+            message = startIndex > 0 
+              ? 'נפתח ספר: $bookTitle (מקטע $startIndex)'
+              : 'נפתח ספר: $bookTitle';
+          }
+          UiSnack.show(message);
+        }
+      }
+      
+      debugPrint('HtmlLinkHandler: Successfully handled sharing link');
+    } catch (e) {
+      debugPrint('HtmlLinkHandler: שגיאה בטיפול בקישור שיתוף: $e');
+
+      if (context.mounted) {
+        UiSnack.show('לא ניתן לפתוח את הקישור: $e');
       }
     }
   }
@@ -123,12 +297,22 @@ class HtmlLinkHandler {
   static Future<bool> handleLink(
     BuildContext context,
     String url,
-    Function(TextBookTab) openBookCallback,
+    Function(OpenedTab) openBookCallback,
   ) async {
+    debugPrint('HtmlLinkHandler: handleLink called with URL: $url');
+    
     try {
       // בדיקה אם זה קישור מבוסס תווים (inline-link)
       if (url.startsWith('otzaria://inline-link')) {
+        debugPrint('HtmlLinkHandler: Processing inline-link');
         await _handleInlineLink(context, url, openBookCallback);
+        return true;
+      }
+
+      // בדיקה אם זה קישור שיתוף (otzaria://book/ או otzaria://pdf/)
+      if (url.startsWith('otzaria://book/') || url.startsWith('otzaria://pdf/')) {
+        debugPrint('HtmlLinkHandler: Processing sharing link');
+        await _handleSharingLink(context, url, openBookCallback);
         return true;
       }
 
@@ -178,12 +362,7 @@ class HtmlLinkHandler {
 
       // הצגת הודעת שגיאה למשתמש
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('שגיאה בפתיחת הקישור: $e'),
-            duration: const Duration(seconds: 5),
-          ),
-        );
+        UiSnack.show('שגיאה בפתיחת הקישור: $e');
       }
 
       return false;
@@ -214,12 +393,7 @@ class HtmlLinkHandler {
         );
 
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('נווט ל: $headerName'),
-              duration: const Duration(seconds: 2),
-            ),
-          );
+          UiSnack.show('נווט ל: $headerName');
         }
       } else {
         throw Exception('לא נמצאה הכותרת: $headerName');
@@ -228,12 +402,7 @@ class HtmlLinkHandler {
       debugPrint('שגיאה בניווט לכותרת: $e');
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('לא ניתן לנווט לכותרת: $headerName'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        UiSnack.show('לא ניתן לנווט לכותרת: $headerName');
       }
     }
   }
@@ -243,7 +412,7 @@ class HtmlLinkHandler {
     BuildContext context,
     String bookTitle,
     String? headerName,
-    Function(TextBookTab) openBookCallback,
+    Function(OpenedTab) openBookCallback,
   ) async {
     try {
       // חיפוש הספר בספרייה
@@ -285,13 +454,8 @@ class HtmlLinkHandler {
         } else {
           // אם לא נמצאה הכותרת, נציג אזהרה אבל עדיין נפתח את הספר
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                    'לא נמצאה הכותרת "$headerName" בספר $bookTitle, פותח את תחילת הספר'),
-                duration: const Duration(seconds: 3),
-              ),
-            );
+            UiSnack.show(
+                'לא נמצאה הכותרת "$headerName" בספר $bookTitle, פותח את תחילת הספר');
           }
         }
       }
@@ -307,23 +471,13 @@ class HtmlLinkHandler {
       openBookCallback(tab);
 
       if (context.mounted && headerName != null && headerName.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('פתח ספר: $bookTitle - $headerName'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        UiSnack.show('פתח ספר: $bookTitle - $headerName');
       }
     } catch (e) {
       debugPrint('שגיאה בפתיחת ספר: $e');
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('לא ניתן לפתוח את הספר: $bookTitle'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        UiSnack.show('לא ניתן לפתוח את הספר: $bookTitle');
       }
     }
   }

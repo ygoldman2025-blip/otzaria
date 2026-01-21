@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:otzaria/data/data_providers/hive_data_provider.dart';
 import 'package:otzaria/utils/docx_to_otzaria.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
+import 'package:otzaria/settings/settings_repository.dart';
 import 'package:otzaria/utils/text_manipulation.dart';
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/library/models/library.dart';
@@ -33,7 +34,7 @@ class FileSystemData {
   /// Creates a new instance of [FileSystemData] and initializes the title to path mapping
   /// and metadata
   FileSystemData() {
-    libraryPath = Settings.getValue<String>('key-library-path') ?? '.';
+    libraryPath = Settings.getValue<String>(SettingsRepository.keyLibraryPath) ?? '.';
     titleToPath = _getTitleToPath();
     metadata = _getMetadata();
   }
@@ -46,10 +47,24 @@ class FileSystemData {
   /// Reads the library from the configured path and combines it with metadata
   /// to create a full [Library] object containing all categories and books.
   Future<Library> getLibrary() async {
+    // בדיקה שהתיקייה הראשית קיימת
+    final rootDir = Directory(libraryPath);
+    if (!rootDir.existsSync()) {
+      debugPrint('Library root directory does not exist: $libraryPath');
+      return Library(categories: []);
+    }
+
+    // בדיקה שתיקיית אוצריא קיימת
+    final otzariaPath = '$libraryPath${Platform.pathSeparator}אוצריא';
+    final otzariaDir = Directory(otzariaPath);
+    if (!otzariaDir.existsSync()) {
+      debugPrint('Otzaria directory does not exist: $otzariaPath');
+      return Library(categories: []);
+    }
+
     titleToPath = _getTitleToPath();
     metadata = _getMetadata();
-    return _getLibraryFromDirectory(
-        '$libraryPath${Platform.pathSeparator}אוצריא', await metadata);
+    return _getLibraryFromDirectory(otzariaPath, await metadata);
   }
 
   /// Recursively builds the library structure from a directory.
@@ -107,7 +122,14 @@ class FileSystemData {
                   category: category,
                   path: entity.path,
                   author: metadata[title]?['author'],
+                  heCategories: metadata[title]?['heCategories'],
+                  heEra: metadata[title]?['heEra'],
+                  compDateStringHe: metadata[title]?['compDateStringHe'],
+                  compPlaceStringHe: metadata[title]?['compPlaceStringHe'],
+                  pubDateStringHe: metadata[title]?['pubDateStringHe'],
+                  pubPlaceStringHe: metadata[title]?['pubPlaceStringHe'],
                   heShortDesc: metadata[title]?['heShortDesc'],
+                  heDesc: metadata[title]?['heDesc'],
                   pubDate: metadata[title]?['pubDate'],
                   pubPlace: metadata[title]?['pubPlace'],
                   order: metadata[title]?['order'] ?? 999,
@@ -124,7 +146,14 @@ class FileSystemData {
                   title: title,
                   category: category,
                   author: metadata[title]?['author'],
+                  heCategories: metadata[title]?['heCategories'],
+                  heEra: metadata[title]?['heEra'],
+                  compDateStringHe: metadata[title]?['compDateStringHe'],
+                  compPlaceStringHe: metadata[title]?['compPlaceStringHe'],
+                  pubDateStringHe: metadata[title]?['pubDateStringHe'],
+                  pubPlaceStringHe: metadata[title]?['pubPlaceStringHe'],
                   heShortDesc: metadata[title]?['heShortDesc'],
+                  heDesc: metadata[title]?['heDesc'],
                   pubDate: metadata[title]?['pubDate'],
                   pubPlace: metadata[title]?['pubPlace'],
                   order: metadata[title]?['order'] ?? 999,
@@ -265,7 +294,7 @@ class FileSystemData {
               pubDate: row[4].toString(),
               topics: row[15].toString().replaceAll(';', ', '),
               heShortDesc: row[13].toString(),
-              link: 'https://beta.hebrewbooks.org/$bookId',
+              link: 'https://beta.hebrewbooks.org/reader/reader.aspx?sfid=$bookId#p=1&fitMode=fitwidth&hlts=&ocr=',
             ));
           }
         } catch (e) {
@@ -282,14 +311,95 @@ class FileSystemData {
   /// Retrieves all links associated with a specific book.
   ///
   /// Links are stored in JSON files named '[book_title]_links.json' in the links directory.
+  ///
+  /// For commentary books whose title starts with "הערות על", this function will also
+  /// retrieve reverse links from the source book, creating bidirectional navigation.
   Future<List<Link>> getAllLinksForBook(String title) async {
     try {
+      // First, try to load direct links for this book
       File file = File(_getLinksPath(title));
-      final jsonString = await file.readAsString();
+      List<Link> directLinks = [];
+
+      if (await file.exists()) {
+        final jsonString = await file.readAsString();
+        final jsonList =
+            await Isolate.run(() async => jsonDecode(jsonString) as List);
+        directLinks = jsonList.map((json) => Link.fromJson(json)).toList();
+      }
+
+      // Check if this is a commentary book (starts with "הערות על")
+      final sourceBookTitle = _getSourceBookFromCommentary(title);
+      if (sourceBookTitle != null) {
+        // Load the source book's links and create reverse links
+        final reverseLinks = await _getReverseLinksFromSourceBook(
+          title,
+          sourceBookTitle,
+        );
+        directLinks.addAll(reverseLinks);
+      }
+
+      return directLinks;
+    } on Exception {
+      return [];
+    }
+  }
+
+  /// Checks if a book title starts with "הערות על" and extracts the source book name.
+  ///
+  /// For example, "הערות על סוכה" returns "סוכה".
+  /// Returns null if the title doesn't start with "הערות על".
+  String? _getSourceBookFromCommentary(String title) {
+    const commentaryPrefix = 'הערות על ';
+    if (title.startsWith(commentaryPrefix)) {
+      return title.substring(commentaryPrefix.length);
+    }
+    return null;
+  }
+
+  /// Creates reverse links from a source book to its commentary.
+  ///
+  /// When the source book has links pointing to the commentary, this function
+  /// creates the opposite links so readers of the commentary can navigate back
+  /// to the source text.
+  Future<List<Link>> _getReverseLinksFromSourceBook(
+    String commentaryTitle,
+    String sourceBookTitle,
+  ) async {
+    try {
+      // Load links from the source book
+      File sourceLinksFile = File(_getLinksPath(sourceBookTitle));
+      if (!await sourceLinksFile.exists()) {
+        return [];
+      }
+
+      final jsonString = await sourceLinksFile.readAsString();
       final jsonList =
           await Isolate.run(() async => jsonDecode(jsonString) as List);
-      return jsonList.map((json) => Link.fromJson(json)).toList();
-    } on Exception {
+      final sourceLinks = jsonList.map((json) => Link.fromJson(json)).toList();
+
+      // Filter links that point to the commentary and create reverse links
+      final reverseLinks = <Link>[];
+      for (final link in sourceLinks) {
+        final linkTargetTitle = getTitleFromPath(link.path2);
+
+        // Check if this link points to the commentary book
+        if (linkTargetTitle == commentaryTitle) {
+          // Create a reverse link: from commentary back to source
+          reverseLinks.add(Link(
+            heRef: sourceBookTitle, // Reference to the source book
+            index1: link.index2, // The commentary line that's being referenced
+            path2: sourceBookTitle, // Path to the source book
+            index2: link.index1, // The source book line that references it
+            connectionType: link.connectionType,
+            start: link.start,
+            end: link.end,
+          ));
+        }
+      }
+
+      return reverseLinks;
+    } on Exception catch (e) {
+      debugPrint('Error creating reverse links for $commentaryTitle: $e');
       return [];
     }
   }
@@ -401,6 +511,12 @@ class FileSystemData {
       final libraryDir =
           Directory('$libraryPath${Platform.pathSeparator}אוצריא');
 
+      // בדיקה שהתיקייה קיימת לפני ניסיון לגשת אליה
+      if (!libraryDir.existsSync()) {
+        debugPrint('Library directory does not exist, skipping cleanup');
+        return 0;
+      }
+
       await for (final entity in libraryDir.list(recursive: true)) {
         if (entity is File) {
           final fileName = entity.path.split(Platform.pathSeparator).last;
@@ -452,7 +568,9 @@ class FileSystemData {
       List<String> paths = [];
       final files = await Directory(path).list(recursive: true).toList();
       for (var file in files) {
-        paths.add(file.path);
+        if (file is File && !file.path.toLowerCase().endsWith('.pdf')) {
+          paths.add(file.path);
+        }
       }
       return paths;
     });
@@ -507,7 +625,7 @@ class FileSystemData {
     Map<String, Map<String, dynamic>> metadata = {};
     try {
       File file = File(
-          '${Settings.getValue<String>('key-library-path') ?? '.'}${Platform.pathSeparator}metadata.json');
+          '${Settings.getValue<String>(SettingsRepository.keyLibraryPath) ?? '.'}${Platform.pathSeparator}metadata.json');
       metadataString = await file.readAsString();
     } catch (e) {
       return {};
@@ -519,6 +637,14 @@ class FileSystemData {
       final row = tempMetadata[i] as Map<String, dynamic>;
       metadata[row['title'].replaceAll('"', '')] = {
         'author': row['author'] ?? '',
+        'heCategories': row['heCategories'] is List
+            ? (row['heCategories'] as List).join(', ')
+            : row['heCategories'] ?? '',
+        'heEra': row['heEra'] ?? '',
+        'compDateStringHe': row['compDateStringHe'] ?? '',
+        'compPlaceStringHe': row['compPlaceStringHe'] ?? '',
+        'pubDateStringHe': row['pubDateStringHe'] ?? '',
+        'pubPlaceStringHe': row['pubPlaceStringHe'] ?? '',
         'heDesc': row['heDesc'] ?? '',
         'heShortDesc': row['heShortDesc'] ?? '',
         'pubDate': row['pubDate'] ?? '',
@@ -527,6 +653,11 @@ class FileSystemData {
             ? [row['title'].toString()]
             : row['extraTitles'].map<String>((e) => e.toString()).toList()
                 as List<String>,
+        'extraTitlesHe': row['extraTitlesHe'] is List
+            ? (row['extraTitlesHe'] as List)
+                .map<String>((e) => e.toString())
+                .toList()
+            : [],
         'order': row['order'] == null || row['order'] == ''
             ? 999
             : row['order'].runtimeType == double
@@ -556,7 +687,7 @@ class FileSystemData {
 
   /// Gets the path to the JSON file containing links for a specific book.
   String _getLinksPath(String title) {
-    return '${Settings.getValue<String>('key-library-path') ?? '.'}${Platform.pathSeparator}links${Platform.pathSeparator}${title}_links.json';
+    return '${Settings.getValue<String>(SettingsRepository.keyLibraryPath) ?? '.'}${Platform.pathSeparator}links${Platform.pathSeparator}${title}_links.json';
   }
 
   /// Checks if a book with the given title exists in the library.

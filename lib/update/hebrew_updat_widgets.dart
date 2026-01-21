@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_settings_screens/flutter_settings_screens.dart';
+import 'package:otzaria/settings/settings_repository.dart';
 import 'package:updat/updat.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -35,7 +38,7 @@ Widget hebrewFlatChip({
       child: TextButton.icon(
         onPressed: openDialog,
         icon: const Icon(FluentIcons.arrow_download_24_regular),
-        label: const Text('עדכון זמין'),
+        label: Text(context.tr('עדכון זמין')),
       ),
     );
   }
@@ -52,7 +55,7 @@ Widget hebrewFlatChip({
             strokeWidth: 2,
           ),
         ),
-        label: const Text('מוריד...'),
+        label: Text(context.tr('מוריד...')),
       ),
     );
   }
@@ -63,18 +66,24 @@ Widget hebrewFlatChip({
       child: TextButton.icon(
         onPressed: launchInstaller,
         icon: const Icon(FluentIcons.checkmark_circle_24_regular),
-        label: const Text('מוכן להתקנה'),
+        label: Text(context.tr('מוכן להתקנה')),
       ),
     );
   }
 
   if (UpdatStatus.error == status) {
+    // לא להציג הודעת שגיאה במצב אופליין
+    final isOfflineMode =
+        Settings.getValue<bool>(SettingsRepository.keyOfflineMode) ?? false;
+    if (isOfflineMode) {
+      return Container();
+    }
     return Tooltip(
       message: 'אירעה שגיאה בעדכון. אנא נסה שוב.',
       child: TextButton.icon(
         onPressed: startUpdate,
         icon: const Icon(FluentIcons.warning_24_regular),
-        label: const Text('שגיאה. נסה שוב.'),
+        label: Text(context.tr('שגיאה בחיבור לרשת במהלך בדיקת עדכונים')),
       ),
     );
   }
@@ -169,13 +178,13 @@ Widget hebrewFloatingExtendedChipWithSilentDownload({
               children: [
                 TextButton(
                   onPressed: dismissUpdate,
-                  child: const Text('מאוחר יותר'),
+                  child: Text(context.tr('מאוחר יותר')),
                 ),
                 const SizedBox(width: 10),
                 ElevatedButton.icon(
                   onPressed: startUpdate,
                   icon: const Icon(FluentIcons.desktop_arrow_down_24_regular),
-                  label: const Text('התקן כעת'),
+                  label: Text(context.tr('התקן כעת')),
                 ),
               ],
             ),
@@ -217,7 +226,7 @@ void hebrewDefaultDialog({
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('גרסה חדשה של האפליקציה זמינה.'),
+          Text(context.tr('גרסה חדשה של האפליקציה זמינה.')),
           const SizedBox(width: 10),
           Text('גרסה חדשה: ${latestVersion!.toString()}'),
           const SizedBox(height: 10),
@@ -237,7 +246,7 @@ void hebrewDefaultDialog({
       ),
       actions: <Widget>[
         TextButton(
-          child: const Text('מאוחר יותר'),
+          child: Text(context.tr('מאוחר יותר')),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -247,7 +256,7 @@ void hebrewDefaultDialog({
             Navigator.pop(context);
             startUpdate();
           },
-          child: const Text('עדכן כעת'),
+          child: Text(context.tr('עדכן כעת')),
         ),
       ],
     ),

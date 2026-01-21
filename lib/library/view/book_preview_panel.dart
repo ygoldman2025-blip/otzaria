@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/models/books.dart';
@@ -65,7 +66,8 @@ class _BookPreviewPanelState extends State<BookPreviewPanel> {
   void _disposeCurrentTab() {
     _currentTextTab?.dispose();
     _currentTextTab = null;
-    _pdfController = null; // לא צריך dispose כי PdfViewerController לא מממש את זה
+    _pdfController =
+        null; // לא צריך dispose כי PdfViewerController לא מממש את זה
   }
 
   void _createNewTab() {
@@ -158,7 +160,7 @@ class _BookPreviewPanelState extends State<BookPreviewPanel> {
             ElevatedButton.icon(
               onPressed: () => widget.onOpenInReader?.call(0),
               icon: const Icon(FluentIcons.open_24_regular),
-              label: const Text('פתח בעיון'),
+              label: Text(context.tr('פתח בעיון')),
             ),
           ],
         ),
@@ -186,6 +188,24 @@ class _BookPreviewPanelState extends State<BookPreviewPanel> {
                 // אין צורך לשמור את העמוד הנוכחי כאן
                 // נקרא אותו ישירות מה-controller כשנצטרך
               },
+              viewerOverlayBuilder: (context, size, handleLinkTap) => [
+                // פס גלילה אנכי בצד ימין עם מספר עמוד
+                PdfViewerScrollThumb(
+                  controller: _pdfController!,
+                  orientation: ScrollbarOrientation.right,
+                  thumbSize: const Size(40, 25),
+                  thumbBuilder: (context, thumbSize, pageNumber, controller) =>
+                      Container(
+                    color: Colors.black,
+                    child: Center(
+                      child: Text(
+                        pageNumber.toString(),
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           // כפתורים צפים
@@ -223,8 +243,7 @@ class _BookPreviewPanelState extends State<BookPreviewPanel> {
                   ),
                   // כפתור הקטנה
                   IconButton(
-                    icon:
-                        const Icon(FluentIcons.zoom_out_24_regular, size: 20),
+                    icon: const Icon(FluentIcons.zoom_out_24_regular, size: 20),
                     tooltip: 'הקטן',
                     onPressed: () => _pdfController?.zoomDown(),
                     padding: const EdgeInsets.all(8),
@@ -324,7 +343,7 @@ class _BookPreviewPanelState extends State<BookPreviewPanel> {
 
                   if (state is TextBookLoaded) {
                     return Padding(
-                      padding: const EdgeInsets.only(left: 0.0, right: 12.0),
+                      padding: const EdgeInsets.only(left: 12.0, right: 0.0),
                       child: CombinedView(
                         data: state.content,
                         textSize: _fontSize,
@@ -365,8 +384,7 @@ class _BookPreviewPanelState extends State<BookPreviewPanel> {
               children: [
                 // כפתור הגדלת טקסט
                 IconButton(
-                  icon:
-                      const Icon(FluentIcons.zoom_in_24_regular, size: 20),
+                  icon: const Icon(FluentIcons.zoom_in_24_regular, size: 20),
                   tooltip: 'הגדל טקסט',
                   onPressed: () {
                     setState(() {
@@ -385,8 +403,7 @@ class _BookPreviewPanelState extends State<BookPreviewPanel> {
                 ),
                 // כפתור הקטנת טקסט
                 IconButton(
-                  icon: const Icon(FluentIcons.zoom_out_24_regular,
-                      size: 20),
+                  icon: const Icon(FluentIcons.zoom_out_24_regular, size: 20),
                   tooltip: 'הקטן טקסט',
                   onPressed: () {
                     setState(() {
@@ -453,53 +470,55 @@ class _BookPreviewPanelState extends State<BookPreviewPanel> {
   /// בניית skeleton loading - שורות אפורות סטטיות
   Widget _buildSkeletonLoading() {
     final baseColor = Theme.of(context).colorScheme.surfaceContainerHighest;
-    
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // כותרת רמה 1 (כמו "פרק א")
-          Align(
-            alignment: Alignment.centerRight,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 16.0),
-              child: _SkeletonLine(width: 0.25, height: 36, color: baseColor),
+
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // כותרת רמה 1 (כמו "פרק א")
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: _SkeletonLine(width: 0.25, height: 36, color: baseColor),
+              ),
             ),
-          ),
-          // כותרת רמה 2 (כמו "משנה א")
-          Align(
-            alignment: Alignment.centerRight,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 20.0),
-              child: _SkeletonLine(width: 0.2, height: 28, color: baseColor),
+            // כותרת רמה 2 (כמו "משנה א")
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 20.0),
+                child: _SkeletonLine(width: 0.2, height: 28, color: baseColor),
+              ),
             ),
-          ),
-          // פסקה ראשונה
-          ..._buildParagraph([0.95, 0.92, 0.88, 0.94, 0.85], baseColor),
-          const SizedBox(height: 24),
-          // כותרת רמה 2
-          Align(
-            alignment: Alignment.centerRight,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 20.0),
-              child: _SkeletonLine(width: 0.18, height: 28, color: baseColor),
+            // פסקה ראשונה
+            ..._buildParagraph([0.95, 0.92, 0.88, 0.94, 0.85], baseColor),
+            const SizedBox(height: 24),
+            // כותרת רמה 2
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 20.0),
+                child: _SkeletonLine(width: 0.18, height: 28, color: baseColor),
+              ),
             ),
-          ),
-          // פסקה שנייה
-          ..._buildParagraph([0.93, 0.89, 0.96, 0.87, 0.91, 0.82], baseColor),
-          const SizedBox(height: 24),
-          // כותרת רמה 2
-          Align(
-            alignment: Alignment.centerRight,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 20.0),
-              child: _SkeletonLine(width: 0.22, height: 28, color: baseColor),
+            // פסקה שנייה
+            ..._buildParagraph([0.93, 0.89, 0.96, 0.87, 0.91, 0.82], baseColor),
+            const SizedBox(height: 24),
+            // כותרת רמה 2
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 20.0),
+                child: _SkeletonLine(width: 0.22, height: 28, color: baseColor),
+              ),
             ),
-          ),
-          // פסקה שלישית
-          ..._buildParagraph([0.94, 0.88, 0.92, 0.86], baseColor),
-        ],
+            // פסקה שלישית
+            ..._buildParagraph([0.94, 0.88, 0.92, 0.86], baseColor),
+          ],
+        ),
       ),
     );
   }

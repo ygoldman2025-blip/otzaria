@@ -14,26 +14,30 @@ import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/data/data_providers/file_system_data_provider.dart';
 import 'package:otzaria/text_book/editing/repository/overrides_repository.dart';
 import 'package:otzaria/text_book/editing/models/section_identifier.dart';
+import 'package:otzaria/text_book/services/parallel_book_loader.dart';
+import 'package:otzaria/search/models/search_configuration.dart';
 
 class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
-  final TextBookRepository _repository;
+  final TextBookRepository repository;
   final OverridesRepository _overridesRepository;
   final ItemScrollController scrollController;
   final ItemPositionsListener positionsListener;
+  Timer? _debounceTimer;
 
   TextBookBloc({
-    required TextBookRepository repository,
+    required this.repository,
     required OverridesRepository overridesRepository,
     required TextBookInitial initialState,
     required this.scrollController,
     required this.positionsListener,
-  })  : _repository = repository,
-        _overridesRepository = overridesRepository,
+  })  : _overridesRepository = overridesRepository,
         super(initialState) {
     on<LoadContent>(_onLoadContent);
     on<UpdateFontSize>(_onUpdateFontSize);
     on<ToggleLeftPane>(_onToggleLeftPane);
     on<ToggleSplitView>(_onToggleSplitView);
+    on<ToggleTzuratHadafView>(_onToggleTzuratHadafView);
+    on<TogglePageShapeView>(_onTogglePageShapeView);
     on<UpdateCommentators>(_onUpdateCommentators);
     on<ToggleNikud>(_onToggleNikud);
     on<UpdateVisibleIndecies>(_onUpdateVisibleIndecies);
@@ -42,6 +46,9 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
     on<ClearHighlightedLine>(_onClearHighlightedLine);
     on<TogglePinLeftPane>(_onTogglePinLeftPane);
     on<UpdateSearchText>(_onUpdateSearchText);
+    on<UpdateSectionSpecificHighlight>(_onUpdateSectionSpecificHighlight);
+    on<UpdateSectionSpecificHighlightError>(_onUpdateSectionSpecificHighlightError);
+    on<MarkErrorMessageShown>(_onMarkErrorMessageShown);
     on<CreateNoteFromToolbar>(_onCreateNoteFromToolbar);
     on<UpdateSelectedTextForNote>(_onUpdateSelectedTextForNote);
 
@@ -62,26 +69,42 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
   ) async {
     TextBook book;
     String searchText;
+    Map<String, Map<String, bool>> searchOptions = {};
+    Map<int, List<String>> alternativeWords = {};
+    Map<String, String> spacingValues = {};
+    SearchMode searchMode = SearchMode.exact;
     bool showLeftPane;
     List<String> commentators;
     late final List<int> visibleIndices;
+
+    bool initialShowPageShapeView = false;
 
     if (state is TextBookLoaded && event.preserveState) {
       // Preserve current state when reloading
       final currentState = state as TextBookLoaded;
       book = currentState.book;
       searchText = currentState.searchText;
+      searchOptions = currentState.searchOptions;
+      alternativeWords = currentState.alternativeWords;
+      spacingValues = currentState.spacingValues;
+      searchMode = currentState.searchMode;
       showLeftPane = currentState.showLeftPane;
       commentators = currentState.activeCommentators;
       visibleIndices = currentState.visibleIndices;
+      initialShowPageShapeView = currentState.showPageShapeView;
     } else if (state is TextBookInitial) {
       // Normal initial load
       final initial = state as TextBookInitial;
       book = initial.book;
       searchText = initial.searchText;
+      searchOptions = initial.searchOptions;
+      alternativeWords = initial.alternativeWords;
+      spacingValues = initial.spacingValues;
+      searchMode = initial.searchMode;
       showLeftPane = initial.showLeftPane;
       commentators = initial.commentators;
       visibleIndices = [initial.index];
+      initialShowPageShapeView = initial.showPageShapeView;
 
       emit(TextBookLoading(
           book, initial.index, initial.showLeftPane, initial.commentators));
@@ -96,9 +119,51 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
     }
 
     try {
-      final content = await _repository.getBookContent(book);
-      final links = await _repository.getBookLinks(book);
-      final tableOfContents = await _repository.getTableOfContents(book);
+      // Load all data in parallel for performance
+      final loadResult = await ParallelBookLoader.loadBook(
+        book,
+        contentLoader: () => repository.getBookContent(book),
+        linksLoader: () => repository.getBookLinks(book),
+        tocLoader: () => repository.getTableOfContents(book),
+        metadataLoader: () async {
+          // Parallel metadata loading
+          if (book.heCategories == null || book.heCategories!.isEmpty) {
+            try {
+              final metadata = await FileSystemData.instance.metadata;
+              final bookMetadata = metadata[book.title];
+              if (bookMetadata != null) {
+                book.heCategories = bookMetadata['heCategories'];
+                book.author = bookMetadata['author'];
+                book.heEra = bookMetadata['heEra'];
+              }
+            } catch (_) {
+              // Metadata load failure shouldn't block content
+            }
+          }
+        },
+      );
+
+      final content = loadResult.content;
+      final links = loadResult.links;
+      final tableOfContents = loadResult.tableOfContents;
+
+      // Extract categories from path if still missing
+      if (book.heCategories == null || book.heCategories!.isEmpty) {
+        try {
+          final titleToPath = await FileSystemData.instance.titleToPath;
+          final bookPath = titleToPath[book.title];
+          if (bookPath != null) {
+            final pathParts = bookPath.split(Platform.pathSeparator);
+            final otzariaIndex = pathParts.indexOf('אוצריא');
+            if (otzariaIndex >= 0 && otzariaIndex < pathParts.length - 2) {
+              final categories = pathParts.sublist(otzariaIndex + 1, pathParts.length - 1);
+              book.heCategories = categories.join(', ');
+            }
+          }
+        } catch (_) {
+          // Category extraction failure shouldn't block display
+        }
+      }
 
       // Update current title if we're preserving state
       String? currentTitle;
@@ -116,7 +181,7 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
       final Map<String, List<String>> eras;
       if (event.loadCommentators) {
         availableCommentators =
-            await _repository.getAvailableCommentators(links);
+            await repository.getAvailableCommentators(links);
         eras = await utils.splitByEra(availableCommentators);
       } else {
         availableCommentators = [];
@@ -138,18 +203,19 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
       );
 
       // Set up position listener with debouncing to prevent excessive updates
-      Timer? debounceTimer;
       positionsListener.itemPositions.addListener(() {
         // Cancel previous timer if exists
-        debounceTimer?.cancel();
+        _debounceTimer?.cancel();
 
         // Set new timer with 100ms delay
-        debounceTimer = Timer(const Duration(milliseconds: 100), () {
-          final visibleIndicesNow = positionsListener.itemPositions.value
-              .map((e) => e.index)
-              .toList();
-          if (visibleIndicesNow.isNotEmpty) {
-            add(UpdateVisibleIndecies(visibleIndicesNow));
+        _debounceTimer = Timer(const Duration(milliseconds: 100), () {
+          if (!isClosed) {
+            final visibleIndicesNow = positionsListener.itemPositions.value
+                .map((e) => e.index)
+                .toList();
+            if (visibleIndicesNow.isNotEmpty) {
+              add(UpdateVisibleIndecies(visibleIndicesNow));
+            }
           }
         });
       });
@@ -161,16 +227,23 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
         availableCommentators: availableCommentators,
         tableOfContents: tableOfContents,
         fontSize: event.fontSize,
-        showLeftPane: showLeftPane || searchText.isNotEmpty,
+        showLeftPane: event.forceCloseLeftPane
+            ? false
+            : (showLeftPane || searchText.isNotEmpty),
         showSplitView: event.showSplitView,
+        showPageShapeView: initialShowPageShapeView,
         activeCommentators: commentators,
-        commentatorGroups: event.loadCommentators 
+        commentatorGroups: event.loadCommentators
             ? _buildCommentatorGroups(eras, availableCommentators)
             : [],
         removeNikud: removeNikud,
         visibleIndices: visibleIndices,
         pinLeftPane: Settings.getValue<bool>('key-pin-sidebar') ?? false,
         searchText: searchText,
+        searchOptions: searchOptions,
+        alternativeWords: alternativeWords,
+        spacingValues: spacingValues,
+        searchMode: searchMode,
         scrollController: scrollController,
         positionsListener: positionsListener,
         currentTitle: currentTitle,
@@ -183,6 +256,12 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
             : null,
         selectedTextEnd: state is TextBookLoaded
             ? (state as TextBookLoaded).selectedTextEnd
+            : null,
+        sectionSpecificHighlight: state is TextBookLoaded
+            ? (state as TextBookLoaded).sectionSpecificHighlight
+            : null,
+        sectionSpecificHighlightIndex: state is TextBookLoaded
+            ? (state as TextBookLoaded).sectionSpecificHighlightIndex
             : null,
       ));
     } catch (e) {
@@ -236,10 +315,64 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
   ) {
     if (state is TextBookLoaded) {
       final currentState = state as TextBookLoaded;
+      // שמירת ההגדרה ב-Settings כדי שתישמר כברירת מחדל
+      Settings.setValue<bool>('key-splited-view', event.show);
       emit(currentState.copyWith(
         showSplitView: event.show,
         selectedIndex: currentState.selectedIndex,
       ));
+    }
+  }
+
+  void _onToggleTzuratHadafView(
+    ToggleTzuratHadafView event,
+    Emitter<TextBookState> emit,
+  ) {
+    if (state is TextBookLoaded) {
+      final currentState = state as TextBookLoaded;
+
+      // אם עוברים לצורת הדף הישנה, ודא שמצב "צורת הדף" החדש לא נשמר כברירת מחדל
+      if (event.show) {
+        Settings.setValue<bool>('key-page-shape-view', false);
+      }
+      emit(currentState.copyWith(
+        showTzuratHadafView: event.show,
+        showPageShapeView: false, // כיבוי התצוגה החדשה
+        selectedIndex: currentState.selectedIndex,
+        // סגור את חלונית הניווט/חיפוש כשעוברים לצורת הדף
+        showLeftPane: event.show ? false : currentState.showLeftPane,
+      ));
+    }
+  }
+
+  void _onTogglePageShapeView(
+    TogglePageShapeView event,
+    Emitter<TextBookState> emit,
+  ) {
+    if (state is TextBookLoaded) {
+      final currentState = state as TextBookLoaded;
+
+      // שמירת מצב "צורת הדף" כדי שישוחזר גם אחרי סגירה/פתיחה של האפליקציה
+      Settings.setValue<bool>('key-page-shape-view', event.show);
+      emit(currentState.copyWith(
+        showPageShapeView: event.show,
+        showTzuratHadafView: false, // כיבוי התצוגה הישנה
+        selectedIndex: currentState.selectedIndex,
+        // סגור את חלונית הניווט/חיפוש כשעוברים לצורת הדף
+        showLeftPane: event.show ? false : currentState.showLeftPane,
+      ));
+
+      // כשיוצאים ממצב צורת הדף למצב רגיל, גלול למיקום הנוכחי
+      if (!event.show && currentState.selectedIndex != null) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (scrollController.isAttached) {
+            scrollController.scrollTo(
+              index: currentState.selectedIndex!,
+              duration: const Duration(milliseconds: 300),
+            );
+          }
+        });
+      }
     }
   }
 
@@ -298,13 +431,12 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
       // איפוס selectedIndex רק אם היתה גלילה משמעותית (יותר מ-3 שורות)
       // כדי למנוע איפוס כשפשוט עוברים בין tabs
       if (index != null && !event.visibleIndecies.contains(index)) {
-        final oldFirst = currentState.visibleIndices.isNotEmpty 
-            ? currentState.visibleIndices.first 
+        final oldFirst = currentState.visibleIndices.isNotEmpty
+            ? currentState.visibleIndices.first
             : 0;
-        final newFirst = event.visibleIndecies.isNotEmpty 
-            ? event.visibleIndecies.first 
-            : 0;
-        
+        final newFirst =
+            event.visibleIndecies.isNotEmpty ? event.visibleIndecies.first : 0;
+
         // רק אם גללנו יותר מ-3 שורות, נאפס את הבחירה
         if ((oldFirst - newFirst).abs() > 3) {
           index = null;
@@ -374,7 +506,8 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
     if (state is! TextBookLoaded) return;
     final currentState = state as TextBookLoaded;
     if (currentState.highlightedLine == null) return;
-    if (event.lineIndex != null && currentState.highlightedLine != event.lineIndex) {
+    if (event.lineIndex != null &&
+        currentState.highlightedLine != event.lineIndex) {
       return;
     }
     emit(currentState.copyWith(clearHighlight: true));
@@ -399,8 +532,64 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
   ) {
     if (state is TextBookLoaded) {
       final currentState = state as TextBookLoaded;
+      
+      // חיפוש רגיל מאפס את ההדגשה הספציפית למקטע
       emit(currentState.copyWith(
         searchText: event.text,
+        sectionSpecificHighlight: null,
+        sectionSpecificHighlightIndex: null,
+        selectedIndex: currentState.selectedIndex,
+      ));
+    }
+  }
+
+  void _onUpdateSectionSpecificHighlight(
+    UpdateSectionSpecificHighlight event,
+    Emitter<TextBookState> emit,
+  ) {
+    if (state is TextBookLoaded) {
+      final currentState = state as TextBookLoaded;
+      
+      final newState = currentState.copyWith(
+        sectionSpecificHighlight: event.text,
+        sectionSpecificHighlightIndex: event.index,
+        sectionSpecificHighlightError: null, // Clear any previous error
+        fullSectionHighlight: event.fullSection,
+        selectedIndex: currentState.selectedIndex,
+      );
+      
+      emit(newState);
+    }
+  }
+
+  void _onUpdateSectionSpecificHighlightError(
+    UpdateSectionSpecificHighlightError event,
+    Emitter<TextBookState> emit,
+  ) {
+    if (state is TextBookLoaded) {
+      final currentState = state as TextBookLoaded;
+      
+      // אם הטקסט ריק, נקה את השגיאה
+      final errorText = event.searchText.isEmpty ? null : event.searchText;
+      
+      emit(currentState.copyWith(
+        sectionSpecificHighlight: null, // Clear highlight
+        sectionSpecificHighlightIndex: null, // Clear highlight index
+        sectionSpecificHighlightError: errorText, // Set or clear error message
+        errorMessageShown: false, // Always reset to false so error can be shown again if needed
+        selectedIndex: currentState.selectedIndex,
+      ));
+    }
+  }
+
+  void _onMarkErrorMessageShown(
+    MarkErrorMessageShown event,
+    Emitter<TextBookState> emit,
+  ) {
+    if (state is TextBookLoaded) {
+      final currentState = state as TextBookLoaded;
+      emit(currentState.copyWith(
+        errorMessageShown: true,
         selectedIndex: currentState.selectedIndex,
       ));
     }
@@ -569,7 +758,7 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
       // Handle full file editing differently
       if (event.sectionId == 'full_file' && event.index == -1) {
         // For full file editing, save the entire content to the original file
-        await _repository.saveBookContent(currentState.book, event.markdown);
+        await repository.saveBookContent(currentState.book, event.markdown);
 
         // Split the content back into sections for display
         final sections = event.markdown
@@ -599,7 +788,7 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
 
       // Join all sections back together and save to original file
       final fullContent = updatedContent.join('\n\n');
-      await _repository.saveBookContent(currentState.book, fullContent);
+      await repository.saveBookContent(currentState.book, fullContent);
 
       // Close editor immediately
       emit(currentState.copyWith(
@@ -715,6 +904,12 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
     } catch (e) {
       // Handle error silently for auto-save
     }
+  }
+
+  @override
+  Future<void> close() {
+    _debounceTimer?.cancel();
+    return super.close();
   }
 
   List<CommentatorGroup> _buildCommentatorGroups(

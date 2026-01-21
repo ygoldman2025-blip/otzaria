@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 
 /// פונקציה גלובלית להצגת דיאלוג הגדרות גימטריה
 /// ניתן לקרוא לה מכל מקום באפליקציה
 Future<void> showGematriaSettingsDialog(BuildContext context) async {
-  debugPrint('🔧 showGematriaSettingsDialog called');
-  
   int maxResults = Settings.getValue<int>('key-gematria-max-results') ?? 100;
   bool filterDuplicates =
       Settings.getValue<bool>('key-gematria-filter-duplicates') ?? false;
@@ -23,7 +22,7 @@ Future<void> showGematriaSettingsDialog(BuildContext context) async {
     context: context,
     builder: (context) => StatefulBuilder(
       builder: (context, setDialogState) => AlertDialog(
-        title: const Text('הגדרות חיפוש גימטריה', textAlign: TextAlign.right),
+        title: Text(context.tr('gematriaSearchSettings'), textAlign: TextAlign.right),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -154,15 +153,12 @@ Future<void> showGematriaSettingsDialog(BuildContext context) async {
         actions: [
           TextButton(
             onPressed: () {
-              debugPrint('🔧 Close button pressed');
               Navigator.of(context).pop();
             },
-            child: const Text('סגור'),
+            child: Text(context.tr('close_')),
           ),
         ],
       ),
     ),
   );
-  
-  debugPrint('🔧 showGematriaSettingsDialog completed');
 }

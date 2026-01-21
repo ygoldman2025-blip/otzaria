@@ -1,9 +1,31 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:otzaria/core/window_persistence.dart';
+
+/// Callback type for fullscreen state changes
+typedef FullscreenCallback = void Function(bool isFullscreen);
 
 /// Window listener that handles window events properly to prevent crashes
 class AppWindowListener extends WindowListener {
+  FullscreenCallback? onFullscreenChanged;
+
+  @override
+  void onWindowEnterFullScreen() {
+    if (kDebugMode) {
+      print('Window entered fullscreen');
+    }
+    onFullscreenChanged?.call(true);
+  }
+
+  @override
+  void onWindowLeaveFullScreen() {
+    if (kDebugMode) {
+      print('Window left fullscreen');
+    }
+    onFullscreenChanged?.call(false);
+  }
+
   @override
   void onWindowClose() {
     if (kDebugMode) {
@@ -18,6 +40,7 @@ class AppWindowListener extends WindowListener {
           (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
         // Use Future.microtask to avoid blocking the current execution
         Future.microtask(() async {
+          await WindowPersistence.saveNow();
           await windowManager.destroy();
         });
       }
@@ -63,6 +86,8 @@ class AppWindowListener extends WindowListener {
     if (kDebugMode) {
       print('Window resized');
     }
+
+    WindowPersistence.scheduleSave();
   }
 
   @override
@@ -70,10 +95,29 @@ class AppWindowListener extends WindowListener {
     if (kDebugMode) {
       print('Window moved');
     }
+
+    WindowPersistence.scheduleSave();
+  }
+
+  @override
+  void onWindowMaximize() {
+    if (kDebugMode) {
+      print('Window maximized');
+    }
+    WindowPersistence.scheduleSave();
+  }
+
+  @override
+  void onWindowUnmaximize() {
+    if (kDebugMode) {
+      print('Window unmaximized');
+    }
+    WindowPersistence.scheduleSave();
   }
 
   /// Clean up the listener when disposing
   void dispose() {
+
     // Remove this listener from window manager
     if (!kIsWeb &&
         (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
@@ -81,3 +125,4 @@ class AppWindowListener extends WindowListener {
     }
   }
 }
+

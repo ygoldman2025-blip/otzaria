@@ -5,11 +5,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:otzaria/settings/settings_state.dart';
+import 'package:otzaria/settings/settings_repository.dart';
 import 'package:otzaria/settings/gematria_settings_dialog.dart';
 import 'package:otzaria/utils/text_manipulation.dart' as utils;
 import 'package:otzaria/core/scaffold_messenger.dart';
 import 'gematria_search.dart';
 import 'package:otzaria/utils/open_book.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 class GematriaSearchScreen extends StatefulWidget {
   const GematriaSearchScreen({super.key});
@@ -64,27 +66,27 @@ class GematriaSearchScreenState extends State<GematriaSearchScreen> {
   }
 
   Future<void> _performSearch() async {
-    debugPrint('🔍 _performSearch called from: ${StackTrace.current.toString().split('\n')[1]}');
-    
     final searchText = _searchController.text.trim();
-    debugPrint('🔍 Search text: "$searchText"');
-    
+
     if (searchText.isEmpty) {
-      debugPrint('🔍 Search text is empty, returning');
       return;
     }
 
     // טעינת ההגדרות הבוקריות ישירות מה-Settings
-    final useSmallGematria = Settings.getValue<bool>('key-gematria-use-small') ?? false;
-    final useFinalLetters = Settings.getValue<bool>('key-gematria-use-final-letters') ?? false;
-    final useWithKolel = Settings.getValue<bool>('key-gematria-use-with-kolel') ?? false;
-    final maxResults = Settings.getValue<int>('key-gematria-max-results') ?? 100;
-    final filterDuplicates = Settings.getValue<bool>('key-gematria-filter-duplicates') ?? false;
-    final wholeVerseOnly = Settings.getValue<bool>('key-gematria-whole-verse-only') ?? false;
-    final torahOnly = Settings.getValue<bool>('key-gematria-torah-only') ?? false;
-
-    debugPrint('🔍 Settings loaded: maxResults=$maxResults, torahOnly=$torahOnly, wholeVerseOnly=$wholeVerseOnly');
-    debugPrint('🔍 Gematria method: useSmall=$useSmallGematria, useFinal=$useFinalLetters, useKolel=$useWithKolel');
+    final useSmallGematria =
+        Settings.getValue<bool>('key-gematria-use-small') ?? false;
+    final useFinalLetters =
+        Settings.getValue<bool>('key-gematria-use-final-letters') ?? false;
+    final useWithKolel =
+        Settings.getValue<bool>('key-gematria-use-with-kolel') ?? false;
+    final maxResults =
+        Settings.getValue<int>('key-gematria-max-results') ?? 100;
+    final filterDuplicates =
+        Settings.getValue<bool>('key-gematria-filter-duplicates') ?? false;
+    final wholeVerseOnly =
+        Settings.getValue<bool>('key-gematria-whole-verse-only') ?? false;
+    final torahOnly =
+        Settings.getValue<bool>('key-gematria-torah-only') ?? false;
 
     int? targetGimatria;
 
@@ -135,7 +137,7 @@ class GematriaSearchScreenState extends State<GematriaSearchScreen> {
 
     try {
       // קבלת נתיב הספרייה מההגדרות
-      final libraryPath = Settings.getValue<String>('key-library-path') ?? '.';
+      final libraryPath = Settings.getValue<String>(SettingsRepository.keyLibraryPath) ?? '.';
 
       // חיפוש בתיקיות ספציפיות בלבד
       final searchPaths = torahOnly
@@ -282,30 +284,17 @@ class GematriaSearchScreenState extends State<GematriaSearchScreen> {
   }
 
   void showSettingsDialog() {
-    debugPrint('🔧 Opening settings dialog');
-    
     // ההמתנה לסגירת הדיאלוג
     showGematriaSettingsDialog(context).then((_) {
-      debugPrint('🔧 Settings dialog closed - .then() executed!');
-      debugPrint('🔧 Search controller text: "${_searchController.text}"');
-      debugPrint('🔧 Has searched: $_hasSearched');
-      debugPrint('🔧 Mounted: $mounted');
-      
       // ווידוא שה-widget עדיין mounted
       if (!mounted) {
-        debugPrint('🔧 Widget not mounted, skipping search');
         return;
       }
-      
+
       // רצה בצע חיפוש מחדש אם יש טקסט חיפוש ובוצע חיפוש לפחות פעם אחת
       if (_searchController.text.trim().isNotEmpty && _hasSearched) {
-        debugPrint('🔧 Performing automatic search after settings change');
         _performSearch();
-      } else {
-        debugPrint('🔧 No search performed yet or no text, skipping automatic search');
       }
-    }).catchError((error) {
-      debugPrint('🔧 ERROR in showSettingsDialog: $error');
     });
   }
 
@@ -316,10 +305,9 @@ class GematriaSearchScreenState extends State<GematriaSearchScreen> {
         children: [
           const SizedBox(width: 8),
           Expanded(
-            child: TextField(
+            child: RtlTextField(
               controller: _searchController,
               textAlign: TextAlign.right,
-              textDirection: TextDirection.rtl,
               decoration: InputDecoration(
                 border: const OutlineInputBorder(),
                 hintText: 'חפש גימטריה...',

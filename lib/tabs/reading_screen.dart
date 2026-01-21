@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
+import 'package:flutter/services.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_context_menu/flutter_context_menu.dart';
@@ -15,8 +17,10 @@ import 'package:otzaria/tabs/models/pdf_tab.dart';
 import 'package:otzaria/tabs/models/searching_tab.dart';
 import 'package:otzaria/tabs/models/tab.dart';
 import 'package:otzaria/tabs/models/text_tab.dart';
+import 'package:otzaria/tabs/models/combined_tab.dart';
 import 'package:otzaria/search/view/full_text_search_screen.dart';
 import 'package:otzaria/text_book/view/text_book_screen.dart';
+import 'package:otzaria/core/scaffold_messenger.dart';
 import 'package:otzaria/utils/text_manipulation.dart';
 import 'package:otzaria/workspaces/view/workspace_switcher_dialog.dart';
 import 'package:otzaria/history/history_dialog.dart';
@@ -25,10 +29,11 @@ import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'dart:convert';
 import 'package:otzaria/widgets/scrollable_tab_bar.dart';
 import 'package:otzaria/settings/reading_settings_dialog.dart';
-import 'package:window_manager/window_manager.dart';
 import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:otzaria/settings/settings_state.dart';
-import 'package:otzaria/settings/settings_event.dart';
+import 'package:otzaria/utils/fullscreen_helper.dart';
+import 'package:otzaria/utils/sharing_utils.dart';
+import 'package:otzaria/widgets/resizable_drag_handle.dart';
 
 class ReadingScreen extends StatefulWidget {
   const ReadingScreen({super.key});
@@ -38,8 +43,18 @@ class ReadingScreen extends StatefulWidget {
 }
 
 const double _kAppBarControlsWidth = 125.0;
+const double _kAppBarControlsWidthRightAligned = 105.0;
 const int _kActionButtonsCount = 2; // fullscreen + settings
 const double _kActionButtonWidth = 56.0;
+
+/// סגנון משותף לכפתורי האייקון בשורת הכותרת
+final ButtonStyle _kIconButtonStyle = IconButton.styleFrom(
+  minimumSize: const Size(32, 32),
+  padding: EdgeInsets.zero,
+  shape: RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(8),
+  ),
+);
 
 class _ReadingScreenState extends State<ReadingScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
@@ -77,16 +92,32 @@ class _ReadingScreenState extends State<ReadingScreen>
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<TabsBloc, TabsState>(
-      listener: (context, state) {
-        if (state.hasOpenTabs) {
-          context
-              .read<HistoryBloc>()
-              .add(CaptureStateForHistory(state.currentTab!));
-        }
-      },
-      listenWhen: (previous, current) =>
-          previous.currentTabIndex != current.currentTabIndex,
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<TabsBloc, TabsState>(
+          listener: (context, state) {
+            if (state.hasOpenTabs) {
+              context
+                  .read<HistoryBloc>()
+                  .add(CaptureStateForHistory(state.currentTab!));
+            }
+          },
+          listenWhen: (previous, current) =>
+              previous.currentTabIndex != current.currentTabIndex,
+        ),
+        BlocListener<TabsBloc, TabsState>(
+          listener: (context, state) {
+            // כשסוגרים את הטאב האחרון, עוברים למסך הספרייה
+            if (!state.hasOpenTabs) {
+              context.read<NavigationBloc>().add(
+                    const NavigateToScreen(Screen.library),
+                  );
+            }
+          },
+          listenWhen: (previous, current) =>
+              previous.hasOpenTabs && !current.hasOpenTabs,
+        ),
+      ],
       child: BlocBuilder<SettingsBloc, SettingsState>(
         builder: (context, settingsState) {
           return BlocBuilder<TabsBloc, TabsState>(
@@ -113,77 +144,72 @@ class _ReadingScreenState extends State<ReadingScreen>
                       children: [
                         // קבוצת היסטוריה וסימניות
                         IconButton(
-                          icon: const Icon(FluentIcons.history_24_regular),
+                          icon: const Icon(FluentIcons.history_24_regular,
+                              size: 18),
                           tooltip:
                               'הצג היסטוריה (${historyShortcut.toUpperCase()})',
                           onPressed: () => _showHistoryDialog(context),
+                          style: _kIconButtonStyle,
                         ),
                         IconButton(
-                          icon: const Icon(FluentIcons.bookmark_24_regular),
+                          icon: const Icon(FluentIcons.bookmark_24_regular,
+                              size: 18),
                           tooltip:
                               'הצג סימניות (${bookmarksShortcut.toUpperCase()})',
                           onPressed: () => _showBookmarksDialog(context),
+                          style: _kIconButtonStyle,
                         ),
                         // קו מפריד
                         Container(
-                          height: 24,
+                          height: 20,
                           width: 1,
                           color: Colors.grey.shade400,
                           margin: const EdgeInsets.symmetric(horizontal: 2),
                         ),
                         // קבוצת שולחן עבודה
                         IconButton(
-                          icon: const Icon(FluentIcons.add_square_24_regular),
+                          icon: const Icon(FluentIcons.add_square_24_regular,
+                              size: 18),
                           tooltip:
                               'החלף שולחן עבודה (${workspaceShortcut.toUpperCase()})',
                           onPressed: () => _showSaveWorkspaceDialog(context),
+                          style: _kIconButtonStyle,
                         ),
                       ],
                     ),
                     titleSpacing: 0,
                     centerTitle: true,
-                    title: const Text('עיון'),
+                    title: Text(context.tr('עיון')),
                     actions: [
                       // כפתור מסך מלא
                       BlocBuilder<SettingsBloc, SettingsState>(
                         builder: (context, settingsState) {
                           return IconButton(
-                            icon: Icon(settingsState.isFullscreen
-                                ? FluentIcons.full_screen_minimize_24_regular
-                                : FluentIcons.full_screen_maximize_24_regular),
+                            icon: Icon(
+                              settingsState.isFullscreen
+                                  ? FluentIcons.full_screen_minimize_24_regular
+                                  : FluentIcons.full_screen_maximize_24_regular,
+                              size: 18,
+                            ),
                             tooltip: settingsState.isFullscreen
                                 ? 'צא ממסך מלא'
                                 : 'מסך מלא',
                             onPressed: () async {
                               final newFullscreenState =
                                   !settingsState.isFullscreen;
-                              context
-                                  .read<SettingsBloc>()
-                                  .add(UpdateIsFullscreen(newFullscreenState));
-                              await windowManager
-                                  .setFullScreen(newFullscreenState);
+                              await FullscreenHelper.toggleFullscreen(
+                                  context, newFullscreenState);
                             },
+                            style: _kIconButtonStyle,
                           );
                         },
                       ),
-                      // כפתור הגדרות
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                        child: IconButton(
-                          icon: const Icon(FluentIcons.settings_24_regular),
-                          tooltip: 'הגדרות תצוגת הספרים',
-                          onPressed: () => showReadingSettingsDialog(context),
-                          style: IconButton.styleFrom(
-                            foregroundColor:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                            backgroundColor: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
+                      // כפתור הגדרות ישיר
+                      IconButton(
+                        icon: const Icon(FluentIcons.settings_24_regular, size: 18),
+                        tooltip: 'הגדרות תצוגת הספרים',
+                        onPressed: () => showReadingSettingsDialog(context),
+                        style: _kIconButtonStyle,
                       ),
                     ],
                   ),
@@ -207,7 +233,7 @@ class _ReadingScreenState extends State<ReadingScreen>
                                   );
                             },
                             icon: const Icon(FluentIcons.library_24_regular),
-                            label: const Text('דפדף בספרייה'),
+                            label: Text(context.tr('דפדף בספרייה')),
                           ),
                         ),
                       ],
@@ -216,26 +242,37 @@ class _ReadingScreenState extends State<ReadingScreen>
                 );
               }
 
+              // וידוא שהאינדקס תקף לפני יצירת ה-TabController
+              final validIndex =
+                  state.currentTabIndex.clamp(0, state.tabs.length - 1);
               final controller = TabController(
                 length: state.tabs.length,
                 vsync: this,
-                initialIndex: state.currentTabIndex,
+                initialIndex: validIndex,
               );
 
               controller.addListener(() {
-                if (controller.indexIsChanging &&
-                    state.currentTabIndex < state.tabs.length) {
-                  // שמירת המצב הנוכחי לפני המעבר לטאב אחר
+                // בדיקה אם TabBarView קיים (לא במצב side-by-side)
+                try {
+                  if (controller.indexIsChanging &&
+                      state.currentTabIndex < state.tabs.length) {
+                    // שמירת המצב הנוכחי לפני המעבר לטאב אחר
+                    debugPrint(
+                        'DEBUG: מעבר בין טאבים - שמירת מצב טאב ${state.currentTabIndex}');
+                    context.read<HistoryBloc>().add(CaptureStateForHistory(
+                        state.tabs[state.currentTabIndex]));
+                    // שמירת כל הטאבים לדיסק
+                    context.read<TabsBloc>().add(const SaveTabs());
+                  }
+                  if (controller.index != state.currentTabIndex) {
+                    context
+                        .read<TabsBloc>()
+                        .add(SetCurrentTab(controller.index));
+                  }
+                } catch (e) {
+                  // אם TabBarView לא קיים, מתעלמים
                   debugPrint(
-                      'DEBUG: מעבר בין טאבים - שמירת מצב טאב ${state.currentTabIndex}');
-                  context.read<HistoryBloc>().add(CaptureStateForHistory(
-                      state.tabs[state.currentTabIndex]));
-                  // שמירת כל הטאבים לדיסק
-                  context.read<TabsBloc>().add(const SaveTabs());
-                }
-                if (controller.index != state.currentTabIndex) {
-                  debugPrint('DEBUG: עדכון טאב נוכחי ל-${controller.index}');
-                  context.read<TabsBloc>().add(SetCurrentTab(controller.index));
+                      'DEBUG: TabController listener error (expected in side-by-side mode): $e');
                 }
               });
 
@@ -255,59 +292,73 @@ class _ReadingScreenState extends State<ReadingScreen>
 
               return Scaffold(
                 appBar: AppBar(
+                  toolbarHeight: 36, // הקטנת גובה ה-AppBar
                   key: ValueKey(
                       'appbar_${historyShortcut}_${bookmarksShortcut}_${workspaceShortcut}_$closeTabShortcut'),
-                  // 1. משתמשים בקבוע שהגדרנו עבור הרוחב
-                  leadingWidth: _kAppBarControlsWidth,
+                  // רוחב מצומצם יותר כשהיישור לימין כדי להצמיד את הטאבים
+                  leadingWidth: settingsState.alignTabsToRight
+                      ? _kAppBarControlsWidthRightAligned
+                      : _kAppBarControlsWidth,
                   leading: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       // קבוצת היסטוריה וסימניות
                       IconButton(
-                        icon: const Icon(FluentIcons.history_24_regular),
+                        icon: const Icon(FluentIcons.history_24_regular,
+                            size: 18),
                         tooltip:
                             'הצג היסטוריה (${historyShortcut.toUpperCase()})',
                         onPressed: () => _showHistoryDialog(context),
+                        style: _kIconButtonStyle,
                       ),
                       IconButton(
-                        icon: const Icon(FluentIcons.bookmark_24_regular),
+                        icon: const Icon(FluentIcons.bookmark_24_regular,
+                            size: 18),
                         tooltip:
                             'הצג סימניות (${bookmarksShortcut.toUpperCase()})',
                         onPressed: () => _showBookmarksDialog(context),
+                        style: _kIconButtonStyle,
                       ),
                       // קו מפריד
                       Container(
-                        height: 24,
+                        height: 20,
                         width: 1,
                         color: Colors.grey.shade400,
                         margin: const EdgeInsets.symmetric(horizontal: 2),
                       ),
                       // קבוצת שולחן עבודה עם אנימציה
                       IconButton(
-                        icon: const Icon(FluentIcons.add_square_24_regular),
+                        icon: const Icon(FluentIcons.add_square_24_regular,
+                            size: 18),
                         tooltip:
                             'החלף שולחן עבודה (${workspaceShortcut.toUpperCase()})',
                         onPressed: () => _showSaveWorkspaceDialog(context),
+                        style: _kIconButtonStyle,
                       ),
                     ],
                   ),
                   titleSpacing: 0,
                   centerTitle: true,
                   title: Container(
-                    // שימוש בכל גובה ה-AppBar כך שלא יהיה רווח למעלה
-                    constraints:
-                        const BoxConstraints(maxHeight: kToolbarHeight),
+                    // גובה מופחת של אזור הטאבים
+                    constraints: const BoxConstraints(maxHeight: 32),
                     child: ScrollableTabBarWithArrows(
                       controller: controller,
-                      // ממורכז את שורת הטאבים
-                      tabAlignment: TabAlignment.center,
+                      // יישור הטאבים לפי הגדרת המשתמש
+                      tabAlignment: settingsState.alignTabsToRight
+                          ? TabAlignment.start
+                          : TabAlignment.center,
+                      // הסתרת החיצים כשאין גלילה ויישור לימין - למניעת רווחים מיותרים
+                      hideArrowsWhenNotScrollable:
+                          settingsState.alignTabsToRight,
                       onOverflowChanged: (overflow) {
                         if (mounted) {
                           setState(() => _tabsOverflow = overflow);
                         }
                       },
                       tabs: state.tabs
-                          .map((tab) => _buildTab(context, tab, state))
+                          .map((tab) =>
+                              _buildTab(context, tab, state, settingsState))
                           .toList(),
                     ),
                   ),
@@ -323,48 +374,39 @@ class _ReadingScreenState extends State<ReadingScreen>
                     BlocBuilder<SettingsBloc, SettingsState>(
                       builder: (context, settingsState) {
                         return IconButton(
-                          icon: Icon(settingsState.isFullscreen
-                              ? FluentIcons.full_screen_minimize_24_regular
-                              : FluentIcons.full_screen_maximize_24_regular),
+                          icon: Icon(
+                            settingsState.isFullscreen
+                                ? FluentIcons.full_screen_minimize_24_regular
+                                : FluentIcons.full_screen_maximize_24_regular,
+                            size: 18,
+                          ),
                           tooltip: settingsState.isFullscreen
                               ? 'צא ממסך מלא'
                               : 'מסך מלא',
                           onPressed: () async {
                             final newFullscreenState =
                                 !settingsState.isFullscreen;
-                            context
-                                .read<SettingsBloc>()
-                                .add(UpdateIsFullscreen(newFullscreenState));
-                            await windowManager
-                                .setFullScreen(newFullscreenState);
+                            await FullscreenHelper.toggleFullscreen(
+                                context, newFullscreenState);
                           },
+                          style: _kIconButtonStyle,
                         );
                       },
                     ),
-                    // כפתור הגדרות בצד שמאל של שורת הטאבים
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                      child: IconButton(
-                        icon: const Icon(FluentIcons.settings_24_regular),
-                        tooltip: 'הגדרות תצוגת הספרים',
-                        onPressed: () => showReadingSettingsDialog(context),
-                        style: IconButton.styleFrom(
-                          foregroundColor:
-                              Theme.of(context).colorScheme.onSurfaceVariant,
-                          backgroundColor: Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
+
+                    // כפתור הגדרות ישיר
+                    IconButton(
+                      icon: const Icon(FluentIcons.settings_24_regular, size: 18),
+                      tooltip: 'הגדרות תצוגת הספרים',
+                      onPressed: () => showReadingSettingsDialog(context),
+                      style: _kIconButtonStyle,
                     ),
                   ],
                 ),
                 body: SizedBox.fromSize(
                   size: MediaQuery.of(context).size,
                   child: TabBarView(
+                    key: const ValueKey('normal_tab_view'),
                     controller: controller,
                     children:
                         state.tabs.map((tab) => _buildTabView(tab)).toList(),
@@ -379,7 +421,10 @@ class _ReadingScreenState extends State<ReadingScreen>
   }
 
   Widget _buildTabView(OpenedTab tab) {
-    if (tab is PdfBookTab) {
+    if (tab is CombinedTab) {
+      // הצגת שני הספרים זה לצד זה
+      return _buildCombinedTabView(tab);
+    } else if (tab is PdfBookTab) {
       return PdfBookScreen(
         key: PageStorageKey(tab),
         tab: tab,
@@ -404,7 +449,52 @@ class _ReadingScreenState extends State<ReadingScreen>
     return const SizedBox.shrink();
   }
 
-  Widget _buildTab(BuildContext context, OpenedTab tab, TabsState state) {
+  Widget _buildCombinedTabView(CombinedTab combinedTab) {
+    return _SideBySideViewWidget(
+      key: ValueKey(
+          'combined_${combinedTab.rightTab.title}_${combinedTab.leftTab.title}'),
+      rightTab: combinedTab.rightTab,
+      leftTab: combinedTab.leftTab,
+      initialSplitRatio: combinedTab.splitRatio,
+      onSplitRatioChanged: (ratio) {
+        context.read<TabsBloc>().add(UpdateSplitRatio(ratio));
+      },
+      buildTabView: (tab) =>
+          _buildSingleTabContent(tab, isInCombinedView: true),
+    );
+  }
+
+  Widget _buildSingleTabContent(OpenedTab tab,
+      {bool isInCombinedView = false}) {
+    if (tab is PdfBookTab) {
+      return PdfBookScreen(
+        key: PageStorageKey(tab),
+        tab: tab,
+        isInCombinedView: isInCombinedView,
+      );
+    } else if (tab is TextBookTab) {
+      return BlocProvider.value(
+          value: tab.bloc,
+          child: TextBookViewerBloc(
+            openBookCallback: (tab, {int index = 1}) {
+              context.read<TabsBloc>().add(AddTab(tab));
+            },
+            tab: tab,
+            isInCombinedView: isInCombinedView,
+          ));
+    } else if (tab is SearchingTab) {
+      return FullTextSearchScreen(
+        tab: tab,
+        openBookCallback: (tab, {int index = 1}) {
+          context.read<TabsBloc>().add(AddTab(tab));
+        },
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildTab(BuildContext context, OpenedTab tab, TabsState state,
+      SettingsState settingsState) {
     final index = state.tabs.indexOf(tab);
     final isSelected = index == state.currentTabIndex;
     final closeTabShortcut =
@@ -418,22 +508,76 @@ class _ReadingScreenState extends State<ReadingScreen>
       },
       child: ContextMenuRegion(
         contextMenu: ContextMenu(
-          entries: [
-            MenuItem(label: 'סגור', onSelected: () => closeTab(tab, context)),
+          maxHeight: 400,
+          entries: <ContextMenuEntry>[
             MenuItem(
-                label: 'סגור הכל',
-                onSelected: () => closeAllTabs(state, context)),
-            MenuItem(
-              label: 'סגור את האחרים',
-              onSelected: () => closeAllTabsButCurrent(state, context),
+              label: Text(tab.isPinned ? 'בטל הצמדת כרטיסיה' : 'הצמד כרטיסיה'),
+              onSelected: (_) =>
+                  context.read<TabsBloc>().add(TogglePinTab(tab)),
             ),
             MenuItem(
-              label: 'שיכפול',
-              onSelected: () => context.read<TabsBloc>().add(CloneTab(tab)),
+                label: Text(context.tr('close_')),
+                onSelected: (_) => closeTab(tab, context)),
+            MenuItem(
+                label: Text(context.tr('סגור הכל')),
+                onSelected: (_) => closeAllTabs(state, context)),
+            MenuItem(
+              label: Text(context.tr('סגור את האחרים')),
+              onSelected: (_) => closeAllTabsButCurrent(state, context),
             ),
+            MenuItem(
+              label: Text(context.tr('שיכפול')),
+              onSelected: (_) => context.read<TabsBloc>().add(CloneTab(tab)),
+            ),
+            const MenuDivider(),
+            // אפשרות "הצג לצד" - תמיד מוצגת, אבל מושבתת אם אין מספיק טאבים
+            if (tab is! CombinedTab)
+              if (state.tabs.length > 1)
+                MenuItem.submenu(
+                  label: Text(context.tr('הצג לצד')),
+                  items: state.tabs
+                      .where((t) => t != tab && t is! CombinedTab)
+                      .map((otherTab) => MenuItem(
+                            label: Text(otherTab.title),
+                            onSelected: (_) {
+                              context.read<TabsBloc>().add(
+                                    EnableSideBySideMode(
+                                      rightTab: tab, // הטאב הנוכחי ימני
+                                      leftTab: otherTab, // הטאב שנבחר שמאלי
+                                    ),
+                                  );
+                            },
+                          ))
+                      .toList(),
+                )
+              else
+                MenuItem(
+                  label: Text(context.tr('הצג לצד')),
+                  enabled: false,
+                  onSelected: (_) {},
+                ),
+            // אפשרויות לטאב משולב
+            if (tab is CombinedTab) ...[
+              MenuItem(
+                label: Text(context.tr('החלף צדדים')),
+                onSelected: (_) =>
+                    context.read<TabsBloc>().add(const SwapSideBySideTabs()),
+              ),
+              MenuItem(
+                label: Text(context.tr('חזרה לתצוגה רגילה')),
+                onSelected: (_) =>
+                    context.read<TabsBloc>().add(const DisableSideBySideMode()),
+              ),
+            ],
+            const MenuDivider(),
+            MenuItem(
+              label: Text(context.tr('העתק קישור לספר זה')),
+              onSelected: (_) => _shareBookLink(tab),
+            ),
+            const MenuDivider(),
             // הוסרת אפשרות הצמדה לדף הבית לאחר הסרת דף הבית
             MenuItem.submenu(
-              label: 'רשימת הכרטיסיות ',
+              label: Text(context.tr('רשימת הכרטיסיות ')),
               items: _getMenuItems(state.tabs, context),
             )
           ],
@@ -453,9 +597,7 @@ class _ReadingScreenState extends State<ReadingScreen>
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 15),
               child: Text(
-                tab is SearchingTab
-                    ? '${tab.title}:  ${tab.queryController.text}'
-                    : tab.title,
+                tab.title,
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -471,112 +613,156 @@ class _ReadingScreenState extends State<ReadingScreen>
               final newIndex = state.tabs.indexOf(tab);
               context.read<TabsBloc>().add(MoveTab(draggedTab.data, newIndex));
             },
-            builder: (context, candidateData, rejectedData) => Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // --- לוגיקה חדשה ומאוחדת לפס הפרדה שמופיע מימין לטאב ---
-                // בסביבת RTL, הווידג'ט הראשון ברשימה מופיע הכי ימני במסך.
-                if (
-                    // תנאי 1: הצגת פס הפרדה בקצה הימני של כל הטאבים.
-                    // הפס נוצר על ידי הטאב הראשון (index 0) כשהוא אינו פעיל.
-                    (index == 0 && state.currentTabIndex != 0) ||
-                        // תנאי 2: הצגת פס הפרדה בין שני טאבים.
-                        // הפס נוצר על ידי הטאב הנוכחי (index) אם הוא וגם הטאב שלפניו (index - 1) אינם פעילים.
-                        (index > 0 &&
-                            state.currentTabIndex != index &&
-                            state.currentTabIndex != index - 1))
-                  Container(
-                    width: 1,
-                    height: 32,
-                    margin: const EdgeInsets.only(top: 12, bottom: 8),
-                    color: Colors.grey.shade400,
-                  ),
+            builder: (context, candidateData, rejectedData) {
+              // קביעת אילו טאבים נחשבים "פעילים" לצורך פס ההפרדה
+              bool isTabActive(int tabIndex) {
+                return tabIndex == state.currentTabIndex;
+              }
 
-                // הווידג'ט המרכזי שמכיל את הטאב עצמו (ללא שינוי).
-                Container(
-                  // ניצול מלא של גובה ה-AppBar, ללא רווח עליון
-                  constraints: const BoxConstraints(maxHeight: kToolbarHeight),
-                  padding: const EdgeInsets.only(
-                      left: 6, right: 6, top: 0, bottom: 0),
-                  child: CustomPaint(
-                    painter: isSelected
-                        ? _TabBackgroundPainter(
-                            Theme.of(context).colorScheme.surfaceContainer)
-                        : null,
-                    foregroundPainter: isSelected ? _TabBorderPainter() : null,
-                    child: Tab(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (tab is SearchingTab)
-                              ValueListenableBuilder(
-                                valueListenable: tab.queryController,
-                                builder: (context, value, child) => Tooltip(
-                                  message:
-                                      '${tab.title}:  ${tab.queryController.text}',
-                                  child: Text(
-                                    truncate(
-                                        '${tab.title}:  ${tab.queryController.text}',
-                                        12),
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // --- לוגיקה חדשה ומאוחדת לפס הפרדה שמופיע מימין לטאב ---
+                  // בסביבת RTL, הווידג'ט הראשון ברשימה מופיע הכי ימני במסך.
+                  if (
+                      // תנאי 1: הצגת פס הפרדה בקצה הימני של כל הטאבים.
+                      // הפס נוצר על ידי הטאב הראשון (index 0) כשהוא אינו פעיל.
+                      (index == 0 && !isTabActive(0)) ||
+                          // תנאי 2: הצגת פס הפרדה בין שני טאבים.
+                          // הפס נוצר על ידי הטאב הנוכחי (index) אם הוא וגם הטאב שלפניו (index - 1) אינם פעילים.
+                          (index > 0 &&
+                              !isTabActive(index) &&
+                              !isTabActive(index - 1)))
+                    Container(
+                      width: 1,
+                      height: 24,
+                      margin: const EdgeInsets.only(top: 6, bottom: 6),
+                      color: Colors.grey.shade400,
+                    ),
+
+                  // הווידג'ט המרכזי שמכיל את הטאב עצמו (ללא שינוי).
+                  Container(
+                    // גובה מופחת של הטאבים
+                    constraints: const BoxConstraints(maxHeight: 32),
+                    // הסרת padding ימני מהטאב הראשון כשהיישור לימין
+                    padding: EdgeInsets.only(
+                        left: 6,
+                        right: (index == 0 && settingsState.alignTabsToRight)
+                            ? 0
+                            : 6,
+                        top: 0,
+                        bottom: 0),
+                    child: CustomPaint(
+                      painter: isSelected
+                          ? _TabBackgroundPainter(
+                              Theme.of(context).colorScheme.surfaceContainer)
+                          : null,
+                      child: Tab(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                          child: DefaultTextStyle(
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface,
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                              fontSize: 14,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // אינדיקטור הצמדה
+                                if (tab.isPinned)
+                                  const Padding(
+                                    padding: EdgeInsets.only(left: 4.0),
+                                    child: Icon(
+                                      FluentIcons.pin_24_filled,
+                                      size: 14,
+                                    ),
+                                  ),
+                                if (tab is CombinedTab)
+                                  Tooltip(
+                                    message: tab.title,
+                                    child: Row(
+                                      children: [
+                                        const Padding(
+                                          padding: EdgeInsets.all(8.0),
+                                          child: Icon(
+                                              FluentIcons
+                                                  .panel_left_text_24_regular,
+                                              size: 16),
+                                        ),
+                                        Text(truncate(tab.title, 20)),
+                                      ],
+                                    ),
+                                  )
+                                else if (tab is SearchingTab)
+                                  ValueListenableBuilder(
+                                    valueListenable: tab.queryController,
+                                    builder: (context, value, child) => Tooltip(
+                                      message: tab.title,
+                                      child: Text(
+                                        truncate(tab.title, 25),
+                                      ),
+                                    ),
+                                  )
+                                else if (tab is PdfBookTab)
+                                  Tooltip(
+                                    message: tab.title,
+                                    child: Row(
+                                      children: [
+                                        const Padding(
+                                          padding: EdgeInsets.all(8.0),
+                                          child: Icon(
+                                              FluentIcons
+                                                  .document_pdf_24_regular,
+                                              size: 16),
+                                        ),
+                                        Text(truncate(tab.title, 12)),
+                                      ],
+                                    ),
+                                  )
+                                else
+                                  Tooltip(
+                                      message: tab.title,
+                                      child: Text(truncate(tab.title, 12))),
+                                Tooltip(
+                                  preferBelow: false,
+                                  message: closeTabShortcut.toUpperCase(),
+                                  child: IconButton(
+                                    constraints: const BoxConstraints(
+                                      minWidth: 25,
+                                      minHeight: 25,
+                                      maxWidth: 25,
+                                      maxHeight: 25,
+                                    ),
+                                    onPressed: () => closeTab(tab, context),
+                                    icon: const Icon(
+                                        FluentIcons.dismiss_24_regular,
+                                        size: 10),
                                   ),
                                 ),
-                              )
-                            else if (tab is PdfBookTab)
-                              Tooltip(
-                                message: tab.title,
-                                child: Row(
-                                  children: [
-                                    const Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Icon(
-                                          FluentIcons.document_pdf_24_regular,
-                                          size: 16),
-                                    ),
-                                    Text(truncate(tab.title, 12)),
-                                  ],
-                                ),
-                              )
-                            else
-                              Tooltip(
-                                  message: tab.title,
-                                  child: Text(truncate(tab.title, 12))),
-                            Tooltip(
-                              preferBelow: false,
-                              message: closeTabShortcut.toUpperCase(),
-                              child: IconButton(
-                                constraints: const BoxConstraints(
-                                  minWidth: 25,
-                                  minHeight: 25,
-                                  maxWidth: 25,
-                                  maxHeight: 25,
-                                ),
-                                onPressed: () => closeTab(tab, context),
-                                icon: const Icon(FluentIcons.dismiss_24_regular,
-                                    size: 10),
-                              ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
 
-                // --- לוגיקה לפס הפרדה שמופיע משמאל לטאב ---
-                // משמש רק עבור הקצה השמאלי ביותר של כל הטאבים.
-                // הפס נוצר על ידי הטאב האחרון כשהוא אינו פעיל.
-                if (index == state.tabs.length - 1 &&
-                    state.currentTabIndex != index)
-                  Container(
-                    width: 1,
-                    height: 32,
-                    margin: const EdgeInsets.only(top: 12, bottom: 8),
-                    color: Colors.grey.shade400,
-                  ),
-              ],
-            ),
+                  // --- לוגיקה לפס הפרדה שמופיע משמאל לטאב ---
+                  // משמש רק עבור הקצה השמאלי ביותר של כל הטאבים.
+                  // הפס נוצר על ידי הטאב האחרון כשהוא אינו פעיל.
+                  if (index == state.tabs.length - 1 && !isTabActive(index))
+                    Container(
+                      width: 1,
+                      height: 24,
+                      margin: const EdgeInsets.only(top: 6, bottom: 6),
+                      color: Colors.grey.shade400,
+                    ),
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -587,15 +773,19 @@ class _ReadingScreenState extends State<ReadingScreen>
       List<OpenedTab> tabs, BuildContext context) {
     List<MenuItem> items = tabs
         .map((tab) => MenuItem(
-              label: tab.title,
-              onSelected: () {
+              label: Text(tab.title),
+              onSelected: (_) {
                 final index = tabs.indexOf(tab);
                 context.read<TabsBloc>().add(SetCurrentTab(index));
               },
             ))
         .toList();
 
-    items.sort((a, b) => a.label.compareTo(b.label));
+    items.sort((a, b) {
+      final aText = (a.label as Text).data ?? '';
+      final bText = (b.label as Text).data ?? '';
+      return aText.compareTo(bText);
+    });
     return items;
   }
 
@@ -613,8 +803,6 @@ class _ReadingScreenState extends State<ReadingScreen>
   }
 
   void pinTabToHomePage(OpenedTab tab, BuildContext context) {
-    debugPrint('Pinning tab: ${tab.title}'); // debug
-
     // קבל את הרשימה הנוכחית של הספרים הנעוצים
     final currentBooksString =
         Settings.getValue<String>('key-pinned-books') ?? '';
@@ -632,12 +820,7 @@ class _ReadingScreenState extends State<ReadingScreen>
 
     // בדוק אם הספר כבר נעוץ
     if (currentPinnedBooksJson.any((book) => book['title'] == tab.title)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('"${tab.title}" כבר נעוץ בדף הבית'),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      UiSnack.show('"${tab.title}" כבר נעוץ בדף הבית');
       return;
     }
 
@@ -664,14 +847,7 @@ class _ReadingScreenState extends State<ReadingScreen>
     final booksString = jsonEncode(updatedBooks);
     Settings.setValue<String>('key-pinned-books', booksString);
 
-    debugPrint('Saved pinned books: $booksString'); // debug
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('הצמדת "${tab.title}" לדף הבית'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    UiSnack.show('הצמדת "${tab.title}" לדף הבית');
   }
 
   void closeAllTabs(TabsState state, BuildContext context) {
@@ -704,6 +880,111 @@ class _ReadingScreenState extends State<ReadingScreen>
       builder: (context) => const BookmarksDialog(),
     );
   }
+
+  Future<void> _shareBookLink(OpenedTab tab) async {
+    await SharingUtils.shareBookLink(
+      tab,
+      (message) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+          );
+        }
+      },
+      (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error), duration: const Duration(seconds: 2)),
+          );
+        }
+      },
+    );
+  }
+}
+
+// Widget להצגת 2 ספרים זה לצד זה
+class _SideBySideViewWidget extends StatefulWidget {
+  final OpenedTab rightTab;
+  final OpenedTab leftTab;
+  final double initialSplitRatio;
+  final Function(double) onSplitRatioChanged;
+  final Widget Function(OpenedTab) buildTabView;
+
+  const _SideBySideViewWidget({
+    super.key,
+    required this.rightTab,
+    required this.leftTab,
+    required this.initialSplitRatio,
+    required this.onSplitRatioChanged,
+    required this.buildTabView,
+  });
+
+  @override
+  State<_SideBySideViewWidget> createState() => _SideBySideViewWidgetState();
+}
+
+class _SideBySideViewWidgetState extends State<_SideBySideViewWidget> {
+  late double _splitRatio;
+
+  @override
+  void initState() {
+    super.initState();
+    _splitRatio = widget.initialSplitRatio;
+  }
+
+  @override
+  void didUpdateWidget(_SideBySideViewWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // עדכון היחס אם השתנה (למשל, אחרי החלפת צדדים)
+    if (widget.initialSplitRatio != oldWidget.initialSplitRatio) {
+      setState(() {
+        _splitRatio = widget.initialSplitRatio;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final totalWidth = constraints.maxWidth;
+        final rightWidth = totalWidth * _splitRatio;
+        final leftWidth = totalWidth * (1.0 - _splitRatio);
+        const dividerWidth = 8.0;
+
+        return Stack(
+          children: [
+            Row(
+              children: [
+                // ספר ימני (בגלל RTL, זה יופיע בצד ימין)
+                SizedBox(
+                  width: rightWidth,
+                  child: widget.buildTabView(widget.rightTab),
+                ),
+                // מפריד ניתן לגרירה
+                ResizableDragHandle(
+                  isVertical: true,
+                  onDragDelta: (delta) {
+                    setState(() {
+                      // תיקון: הפיכת הכיוון כי אנחנו ב-RTL
+                      final ratioDelta = -delta / totalWidth;
+                      _splitRatio = (_splitRatio + ratioDelta).clamp(0.2, 0.8);
+                    });
+                  },
+                  onDragEnd: () => widget.onSplitRatioChanged(_splitRatio),
+                ),
+                // ספר שמאלי (בגלל RTL, זה יופיע בצד שמאל)
+                SizedBox(
+                  width: leftWidth - dividerWidth,
+                  child: widget.buildTabView(widget.leftTab),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
 
 // CustomPainter לציור רקע של הטאב הפעיל
@@ -719,121 +1000,53 @@ class _TabBackgroundPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     final path = Path();
-    // radius היה בשימוש בעבר לציור נוסף והוסר
     final topRadius = 8.0;
-    // החזרת קו הבסיס הנמוך כדי להבטיח שהוא נראה משני הצדדים
+    final bottomRadius = 12.0; // רדיוס לעיגול הפוך בפינות התחתונות
     final bottomOffset = 6.0;
 
-    // מתחילים מהפינה השמאלית התחתונה
-    path.moveTo(0, size.height + bottomOffset);
+    // מתחילים מהפינה השמאלית התחתונה עם עיגול הפוך
+    path.moveTo(-bottomRadius, size.height + bottomOffset);
 
-    // קו שמאלי למעלה
-    path.lineTo(0, topRadius);
-
-    // פינה עליונה שמאלית מעוגלת
+    // עיגול הפוך בפינה התחתונה השמאלית
     path.arcToPoint(
-      Offset(topRadius, 0),
-      radius: Radius.circular(topRadius),
-    );
-
-    // קו עליון
-    path.lineTo(size.width - topRadius, 0);
-
-    // פינה עליונה ימנית מעוגלת
-    path.arcToPoint(
-      Offset(size.width, topRadius),
-      radius: Radius.circular(topRadius),
-    );
-
-    // קו ימני למטה
-    path.lineTo(size.width, size.height + bottomOffset);
-
-    // קו תחתון
-    path.lineTo(0, size.height + bottomOffset);
-
-    path.close();
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// CustomPainter לציור גבול מעוגל לטאב הפעיל
-// עם קווים המשתרעים משני הצדדים עד סוף החלון
-class _TabBorderPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.black38
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-
-    final path = Path();
-    final radius = 8.0;
-    final topRadius = 8.0;
-    final extendLength = 2000.0; // אורך ארוך מספיק להגיע לקצה החלון
-    // שימוש ב-offset נמוך כדי למנוע "בליעה" של הקו התחתון
-    final bottomOffset = 6.0;
-
-    // מתחילים מהפינה השמאלית התחתונה עם עיגול
-    path.moveTo(0, size.height - radius + bottomOffset);
-
-    // קו שמאלי למעלה
-    path.lineTo(0, topRadius);
-
-    // פינה עליונה שמאלית מעוגלת
-    path.arcToPoint(
-      Offset(topRadius, 0),
-      radius: Radius.circular(topRadius),
-    );
-
-    // קו עליון
-    path.lineTo(size.width - topRadius, 0);
-
-    // פינה עליונה ימנית מעוגלת
-    path.arcToPoint(
-      Offset(size.width, topRadius),
-      radius: Radius.circular(topRadius),
-    );
-
-    // קו ימני למטה
-    path.lineTo(size.width, size.height - radius + bottomOffset);
-
-    // פינה תחתונה ימנית מעוגלת - הקפדה שהקו התחתון יישאר רציף
-    path.arcToPoint(
-      Offset(size.width + radius, size.height + bottomOffset),
-      radius: Radius.circular(radius),
+      Offset(0, size.height + bottomOffset - bottomRadius),
+      radius: Radius.circular(bottomRadius),
       clockwise: false,
     );
 
+    // קו שמאלי למעלה
+    path.lineTo(0, topRadius);
+
+    // פינה עליונה שמאלית מעוגלת
+    path.arcToPoint(
+      Offset(topRadius, 0),
+      radius: Radius.circular(topRadius),
+    );
+
+    // קו עליון
+    path.lineTo(size.width - topRadius, 0);
+
+    // פינה עליונה ימנית מעוגלת
+    path.arcToPoint(
+      Offset(size.width, topRadius),
+      radius: Radius.circular(topRadius),
+    );
+
+    // קו ימני למטה
+    path.lineTo(size.width, size.height + bottomOffset - bottomRadius);
+
+    // עיגול הפוך בפינה התחתונה הימנית
+    path.arcToPoint(
+      Offset(size.width + bottomRadius, size.height + bottomOffset),
+      radius: Radius.circular(bottomRadius),
+      clockwise: false,
+    );
+
+    // קו תחתון
+    path.lineTo(-bottomRadius, size.height + bottomOffset);
+
+    path.close();
     canvas.drawPath(path, paint);
-
-    // פינה תחתונה שמאלית מעוגלת - הקפדה שהקו התחתון יישאר רציף
-    final leftBottomPath = Path();
-    leftBottomPath.moveTo(0, size.height - radius + bottomOffset);
-    leftBottomPath.arcToPoint(
-      Offset(-radius, size.height + bottomOffset),
-      radius: Radius.circular(radius),
-      clockwise: true,
-    );
-
-    canvas.drawPath(leftBottomPath, paint);
-
-    // קווים ארוכים נפרדים - משני הצדדים
-    // קו ימני
-    canvas.drawLine(
-      Offset(size.width + radius, size.height + bottomOffset),
-      Offset(size.width + extendLength, size.height + bottomOffset),
-      paint,
-    );
-
-    // קו שמאלי
-    canvas.drawLine(
-      Offset(-radius, size.height + bottomOffset),
-      Offset(-extendLength, size.height + bottomOffset),
-      paint,
-    );
   }
 
   @override
