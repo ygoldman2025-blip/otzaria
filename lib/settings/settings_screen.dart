@@ -1148,7 +1148,7 @@ class _SettingsTile extends StatelessWidget {
   });
 
   @override
-  Widget buildScreen(BuildContext context, SettingsState settingsState) {
+  Widget build(BuildContext context) {
     return Material(
       child: Column(
         children: [

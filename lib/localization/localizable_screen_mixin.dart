@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/settings/settings_bloc.dart';
+import 'package:otzaria/settings/settings_state.dart';
 
 /// Mixin that automatically listens to language changes and rebuilds the screen
 /// Use this on any StatefulWidget screen that uses context.tr()
