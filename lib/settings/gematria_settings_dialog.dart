@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 
 /// פונקציה גלובלית להצגת דיאלוג הגדרות גימטריה
@@ -154,7 +155,7 @@ Future<void> showGematriaSettingsDialog(BuildContext context) async {
             onPressed: () {
               Navigator.of(context).pop();
             },
-            child: const Text('סגור'),
+            child: Text(context.tr('close_')),
           ),
         ],
       ),

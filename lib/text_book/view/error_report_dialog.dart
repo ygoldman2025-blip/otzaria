@@ -1,6 +1,9 @@
 import 'dart:io';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'dart:convert';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/core/scaffold_messenger.dart';
@@ -311,7 +314,7 @@ $detailsSection
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('סגור'),
+            child: Text(context.tr('close_')),
           ),
           TextButton(
             onPressed: () {
@@ -614,7 +617,7 @@ class _TabbedReportDialogState extends State<TabbedReportDialog>
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('סגור'),
+              child: Text(context.tr('close_')),
             ),
           ],
         ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:flutter/services.dart';
 import 'package:otzaria/widgets/rtl_text_field.dart';
 
@@ -71,7 +72,7 @@ class _PersonalNoteEditorDialogState extends State<PersonalNoteEditorDialog> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('סגור'),
+            child: Text(context.tr('close_')),
           ),
         ],
       ),

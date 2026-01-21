@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:flutter/services.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -515,7 +516,7 @@ class _ReadingScreenState extends State<ReadingScreen>
                   context.read<TabsBloc>().add(TogglePinTab(tab)),
             ),
             MenuItem(
-                label: const Text('סגור'),
+                label: Text(context.tr('close_')),
                 onSelected: (_) => closeTab(tab, context)),
             MenuItem(
                 label: const Text('סגור הכל'),

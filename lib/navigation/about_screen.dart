@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:path/path.dart' as p;
 import '../settings/settings_repository.dart';
+import '../localization/localization_extension.dart';
 import '../services/data_collection_service.dart';
 import '../widgets/ad_popup_dialog.dart';
 import 'dart:io';
@@ -665,7 +666,7 @@ class _AboutScreenState extends State<AboutScreen> {
     if (sitePath == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('לא נמצאה תיקיית otzaria-site')),
+        SnackBar(content: Text(context.tr('dirNotFound'))),
       );
       return;
     }
@@ -674,7 +675,7 @@ class _AboutScreenState extends State<AboutScreen> {
     if (!await htmlFile.exists()) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('הקובץ $fileName לא נמצא')),
+        SnackBar(content: Text(context.trFormat('fileNotFound', [fileName]))),
       );
       return;
     }
@@ -694,7 +695,7 @@ class _AboutScreenState extends State<AboutScreen> {
       builder: (dialogContext) => Directionality(
         textDirection: TextDirection.rtl,
         child: AlertDialog(
-          title: const Text('יומן שינויים בתוכנה'),
+          title: Text(context.tr('changelogTitle')),
           content: SizedBox(
             width: 600,
             height: 400,
@@ -705,7 +706,7 @@ class _AboutScreenState extends State<AboutScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('סגור'),
+              child: Text(context.tr('close_')),
             ),
           ],
         ),
@@ -739,7 +740,7 @@ class _AboutScreenState extends State<AboutScreen> {
       builder: (dialogContext) => Directionality(
         textDirection: TextDirection.rtl,
         child: AlertDialog(
-          title: const Text('יומן שינויים בספרייה'),
+          title: Text(context.tr('changelogLibrary')),
           content: SizedBox(
             width: 600,
             height: 400,
@@ -750,7 +751,7 @@ class _AboutScreenState extends State<AboutScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('סגור'),
+              child: Text(context.tr('close_')),
             ),
           ],
         ),
@@ -809,7 +810,7 @@ class _AboutScreenState extends State<AboutScreen> {
                 foregroundColor: Colors.white,
               ),
               icon: const Icon(FluentIcons.shield_task_24_filled, size: 18),
-              label: const Text('לחץ לפרטים'),
+              label: Text(context.tr('clickDetails')),
             ),
           ),
         ],
@@ -1073,12 +1074,12 @@ class _AboutScreenState extends State<AboutScreen> {
                       ElevatedButton.icon(
                         onPressed: () => _showChangelogDialog(context),
                         icon: const Icon(FluentIcons.history_24_regular),
-                        label: const Text('יומן שינויים בתוכנה'),
+                        label: Text(context.tr('changelogSoftware')),
                       ),
                       ElevatedButton.icon(
                         onPressed: () => _showLibraryChangelogDialog(context),
                         icon: const Icon(FluentIcons.library_24_regular),
-                        label: const Text('יומן שינויים בספרייה'),
+                        label: Text(context.tr('changelogLibrary')),
                       ),
                     ],
                   ),

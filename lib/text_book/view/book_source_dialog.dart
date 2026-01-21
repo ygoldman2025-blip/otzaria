@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:otzaria/text_book/bloc/text_book_state.dart';
 import 'package:otzaria/services/sources_books_service.dart';
 import 'package:otzaria/core/scaffold_messenger.dart';
@@ -168,7 +169,7 @@ Future<void> showBookSourceDialog(
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('סגור'),
+            child: Text(context.tr('close_')),
           ),
         ],
       ),

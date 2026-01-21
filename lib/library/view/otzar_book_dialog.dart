@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import '../../models/books.dart';
 import '../../utils/otzar_utils.dart';
@@ -149,7 +150,7 @@ class OtzarBookDialog extends StatelessWidget {
           style: TextButton.styleFrom(
             foregroundColor: Theme.of(context).colorScheme.secondary,
           ),
-          child: const Text('סגור'),
+          child: Text(context.tr('close_')),
         ),
       ],
     );

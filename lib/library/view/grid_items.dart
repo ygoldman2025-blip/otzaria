@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:otzaria/library/models/library.dart';
 import 'package:otzaria/models/books.dart';
@@ -462,7 +463,7 @@ void _showBookInfoDialog(BuildContext context, Book book) {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('סגור'),
+            child: Text(context.tr('close_')),
           ),
         ],
       );
@@ -598,7 +599,7 @@ void _showCategoryInfoDialog(BuildContext context, Category category) {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('סגור'),
+            child: Text(context.tr('close_')),
           ),
         ],
       );

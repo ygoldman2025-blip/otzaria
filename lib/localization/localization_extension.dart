@@ -23,6 +23,16 @@ extension LocalizationExt on BuildContext {
   /// Get translated string
   String tr(String key) => _translate(key, loc.currentLocale);
 
+  /// Get translated string with formatting (supports %s, %d, etc.)
+  String trFormat(String key, List<dynamic> args) {
+    final template = tr(key);
+    var result = template;
+    for (final arg in args) {
+      result = result.replaceFirst('%s', arg.toString(), 0);
+    }
+    return result;
+  }
+
   /// Translate a string for a specific locale
   static String _translate(String key, String locale) {
     if (locale == 'en') {

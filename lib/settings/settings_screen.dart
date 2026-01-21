@@ -7,6 +7,7 @@ import 'package:window_manager/window_manager.dart';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:otzaria/indexing/bloc/indexing_bloc.dart';
 import 'package:otzaria/indexing/bloc/indexing_event.dart';
 import 'package:otzaria/indexing/bloc/indexing_state.dart';
@@ -817,14 +818,12 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                                 context: context,
                                 barrierDismissible: false,
                                 builder: (context) => AlertDialog(
-                                        title: const Text('ההגדרות אופסו'),
-                                        content: const Text(
-                                            'יש לסגור ולהפעיל מחדש את התוכנה כדי שהשינויים יכנסו לתוקף.'),
+                                        title: Text(context.tr('settingsReset')),
+                                        content: Text(context.tr('settingsResetMessage')),
                                         actions: [
                                           TextButton(
                                               onPressed: () => exit(0),
-                                              child:
-                                                  const Text('סגור את התוכנה'))
+                                              child: Text(context.tr('closeApp')))
                                         ]));
                           }
                         },
@@ -1264,8 +1263,8 @@ class _BackupSettingsSectionState extends State<_BackupSettingsSection> {
         context: context,
         barrierDismissible: false,
         builder: (context) => AlertDialog(
-          title: const Text('השחזור הושלם'),
-          content: const Text('הנתונים שוחזרו בהצלחה. יש להפעיל מחדש את התוכנה.'),
+          title: Text(context.tr('restoreComplete')),
+          content: Text(context.tr('restoreSuccessful')),
           actions: [
             TextButton(
               onPressed: () {
@@ -1275,7 +1274,7 @@ class _BackupSettingsSectionState extends State<_BackupSettingsSection> {
                   windowManager.close();
                 }
               },
-              child: const Text('סגור את התוכנה'),
+              child: Text(context.tr('closeApp')),
             ),
           ],
         ),
@@ -1385,15 +1384,15 @@ class _BackupSettingsSectionState extends State<_BackupSettingsSection> {
                 segments: const [
                   ButtonSegment<String>(
                     value: 'none',
-                    label: Text('ללא'),
+                    label: Text(context.tr('none')),
                   ),
                   ButtonSegment<String>(
                     value: 'weekly',
-                    label: Text('כל שבוע'),
+                    label: Text(context.tr('everyWeek')),
                   ),
                   ButtonSegment<String>(
                     value: 'monthly',
-                    label: Text('כל חודש'),
+                    label: Text(context.tr('everyMonth')),
                   ),
                 ],
                 selected: {autoBackupFrequency},
@@ -1475,12 +1474,12 @@ class _BackupSettingsSectionState extends State<_BackupSettingsSection> {
                 segments: const [
                   ButtonSegment<_BackupMode>(
                     value: _BackupMode.all,
-                    label: Text('גבה הכל'),
+                    label: Text(context.tr('backupAll')),
                     icon: Icon(FluentIcons.checkmark_circle_24_regular),
                   ),
                   ButtonSegment<_BackupMode>(
                     value: _BackupMode.custom,
-                    label: Text('מותאם אישית'),
+                    label: Text(context.tr('custom')),
                     icon: Icon(FluentIcons.options_24_regular),
                   ),
                 ],

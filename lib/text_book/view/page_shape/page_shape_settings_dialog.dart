@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/constants/fonts.dart';
@@ -710,7 +711,7 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(_hasChanges),
-          child: const Text('סגור'),
+          child: Text(context.tr('close_')),
         ),
       ],
     );

@@ -4,14 +4,6 @@ permissions:
   contents: write
 
 on:
-  push:
-    branches:
-      - main
-      - dev
-      - MTDB+dev
-
-  # pull_request:
-  #   types: [opened, synchronize, reopened]
   workflow_dispatch:
 
   # טריגר לפרסום בלבד
