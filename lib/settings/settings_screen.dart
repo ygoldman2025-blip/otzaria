@@ -324,37 +324,45 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                           },
                           activeColor: Theme.of(context).cardColor,
                         ),
-                        ColorPickerSettingsTile(
-                          key: ValueKey(
-                              'color-picker-${state.isDarkMode ? 'dark' : 'light'}'),
-                          title: 'צבע בסיס',
-                          leading: const Icon(FluentIcons.color_24_regular),
-                          settingKey: state.isDarkMode
-                              ? 'key-dark-swatch-color'
-                              : 'key-swatch-color',
-                          onChange: (color) {
-                            if (state.isDarkMode) {
-                              context
-                                  .read<SettingsBloc>()
-                                  .add(UpdateDarkSeedColor(color));
-                            } else {
-                              context
-                                  .read<SettingsBloc>()
-                                  .add(UpdateSeedColor(color));
-                            }
+                        BlocBuilder<SettingsBloc, SettingsState>(
+                          builder: (context, state) {
+                            return ColorPickerSettingsTile(
+                              key: ValueKey(
+                                  'color-picker-${state.isDarkMode ? 'dark' : 'light'}'),
+                              title: 'צבע בסיס',
+                              leading: const Icon(FluentIcons.color_24_regular),
+                              settingKey: state.isDarkMode
+                                  ? 'key-dark-swatch-color'
+                                  : 'key-swatch-color',
+                              onChange: (color) {
+                                if (state.isDarkMode) {
+                                  context
+                                      .read<SettingsBloc>()
+                                      .add(UpdateDarkSeedColor(color));
+                                } else {
+                                  context
+                                      .read<SettingsBloc>()
+                                      .add(UpdateSeedColor(color));
+                                }
+                              },
+                            );
                           },
                         ),
-                        DropDownSettingsTile(
-                          title: 'שפה',
-                          settingKey: 'key-language',
-                          selected: state.language,
-                          items: const {'he': 'עברית', 'en': 'English'},
-                          onChange: (value) {
-                            context
-                                .read<SettingsBloc>()
-                                .add(UpdateLanguage(value));
+                        BlocBuilder<SettingsBloc, SettingsState>(
+                          builder: (context, state) {
+                            return DropDownSettingsTile(
+                              title: 'שפה',
+                              settingKey: 'key-language',
+                              selected: state.language,
+                              items: const {'he': 'עברית', 'en': 'English'},
+                              onChange: (value) {
+                                context
+                                    .read<SettingsBloc>()
+                                    .add(UpdateLanguage(value));
+                              },
+                              leading: const Icon(FluentIcons.globe_24_regular),
+                            );
                           },
-                          leading: const Icon(FluentIcons.globe_24_regular),
                         ),
                       ]),
                     ],
