@@ -237,6 +237,7 @@ class AppStrings {
   static const String addLink = 'Add link';
   static const String linkText = 'Link text';
   static const String clickHere = 'Click here';
+  static const String clickDetails = 'Click for details';
   static const String addBookLocally = 'Open locally';
   static const String unsavedChanges = 'Unsaved changes • ';
   static const String editText = 'Edit text';
@@ -450,6 +451,7 @@ class AppStrings {
     'addLink': 'הוסף קישור',
     'linkText': 'טקסט הקישור',
     'clickHere': 'לחץ כאן',
+    'clickDetails': 'לחץ לפרטים',
     'addBookLocally': 'פתח מקומית',
     'unsavedChanges': 'שינויים שלא נשמרו • ',
     'editText': 'עריכת טקסט',
@@ -667,6 +669,7 @@ class AppStrings {
     'addLink': 'Add link',
     'linkText': 'Link text',
     'clickHere': 'Click here',
+    'clickDetails': 'Click for details',
     'addBookLocally': 'Open locally',
     'unsavedChanges': 'Unsaved changes • ',
     'editText': 'Text editing',

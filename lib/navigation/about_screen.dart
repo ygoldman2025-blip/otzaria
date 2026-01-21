@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -8,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:path/path.dart' as p;
 import '../settings/settings_repository.dart';
+import '../settings/settings_bloc.dart';
 import '../localization/localization_extension.dart';
 import '../services/data_collection_service.dart';
 import '../widgets/ad_popup_dialog.dart';
@@ -951,14 +953,18 @@ class _AboutScreenState extends State<AboutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 900;
+    return BlocBuilder<SettingsBloc, SettingsState>(
+      builder: (context, state) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final isSmallScreen = screenWidth < 900;
 
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: isSmallScreen
-          ? _buildSmallScreenLayout(context)
-          : _buildWideScreenLayout(context),
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: isSmallScreen
+              ? _buildSmallScreenLayout(context)
+              : _buildWideScreenLayout(context),
+        );
+      },
     );
   }
 

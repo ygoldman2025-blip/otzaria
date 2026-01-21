@@ -9,8 +9,10 @@ import 'package:otzaria/localization/localization_extension.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:otzaria/localization/localization_extension.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/localization/localization_extension.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/constants/fonts.dart';
@@ -612,10 +614,12 @@ class _PrintingScreenState extends State<PrintingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isCustomPdfMode = widget.createPdfOverride != null;
+    return BlocBuilder<SettingsBloc, SettingsState>(
+      builder: (context, state) {
+        final colorScheme = Theme.of(context).colorScheme;
+        final isCustomPdfMode = widget.createPdfOverride != null;
 
-    return Scaffold(
+        return Scaffold(
       appBar: AppBar(
         title: Text(context.tr('הדפסה')),
         centerTitle: true,
@@ -1493,6 +1497,8 @@ class _PrintingScreenState extends State<PrintingScreen> {
           );
         },
       ),
+        );
+      },
     );
   }
 
