@@ -47,6 +47,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<UpdateOfflineMode>(_onUpdateOfflineMode);
     on<UpdateAlignTabsToRight>(_onUpdateAlignTabsToRight);
     on<UpdateEnableHtmlLinks>(_onUpdateEnableHtmlLinks);
+    on<UpdateLanguage>(_onUpdateLanguage);
   }
 
   Future<void> _onLoadSettings(
@@ -94,6 +95,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       isOfflineMode: settings['isOfflineMode'] ?? false,
       alignTabsToRight: settings['alignTabsToRight'] ?? false,
       enableHtmlLinks: settings['enableHtmlLinks'] ?? true,
+      language: settings['language'] ?? 'he',
     ));
   }
 
@@ -127,6 +129,14 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   ) async {
     await _repository.updateEnableHtmlLinks(event.enableHtmlLinks);
     emit(state.copyWith(enableHtmlLinks: event.enableHtmlLinks));
+  }
+
+  Future<void> _onUpdateLanguage(
+    UpdateLanguage event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await _repository.updateLanguage(event.language);
+    emit(state.copyWith(language: event.language));
   }
 
   Future<void> _onUpdateDarkMode(

@@ -44,6 +44,7 @@ class SettingsRepository {
   static const String keyDevChannel = 'key-dev-channel';
   static const String keyAlignTabsToRight = 'key-align-tabs-to-right';
   static const String keyEnableHtmlLinks = 'key-enable-html-links';
+  static const String keyLanguage = 'key-language';
 
   // Calendar Notification Settings
   static const String keyCalendarNotificationsEnabled =
@@ -191,6 +192,10 @@ class SettingsRepository {
       'enableHtmlLinks': _settings.getValue<bool>(
         keyEnableHtmlLinks,
         defaultValue: true,
+      ),
+      'language': _settings.getValue<String>(
+        keyLanguage,
+        defaultValue: 'he',
       ),
 
       // Calendar Notification Settings
@@ -350,6 +355,10 @@ class SettingsRepository {
 
   Future<void> updateEnableHtmlLinks(bool value) async {
     await _settings.setValue(keyEnableHtmlLinks, value);
+  }
+
+  Future<void> updateLanguage(String value) async {
+    await _settings.setValue(keyLanguage, value);
   }
 
   // Calendar Notification Settings

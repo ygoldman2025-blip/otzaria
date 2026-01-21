@@ -343,6 +343,18 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                             }
                           },
                         ),
+                        DropDownSettingsTile(
+                          title: 'שפה',
+                          settingKey: 'key-language',
+                          selected: state.language,
+                          items: const {'he': 'עברית', 'en': 'English'},
+                          onChange: (value) {
+                            context
+                                .read<SettingsBloc>()
+                                .add(UpdateLanguage(value));
+                          },
+                          leading: const Icon(FluentIcons.globe_24_regular),
+                        ),
                       ]),
                     ],
                   ),

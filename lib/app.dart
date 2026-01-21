@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/core/scaffold_messenger.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:otzaria/localization/localization_provider.dart';
 import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:otzaria/settings/settings_state.dart';
 import 'package:otzaria/navigation/main_window_screen.dart';
+import 'package:provider/provider.dart';
 
 /// קבועי צבעים לעיצוב האפליקציה
 class AppColors {
@@ -51,6 +53,11 @@ class App extends StatelessWidget {
     return BlocBuilder<SettingsBloc, SettingsState>(
       builder: (context, settingsState) {
         final state = settingsState;
+        // Determine current locale
+        final locale = state.language == 'en' 
+            ? const Locale('en', 'US')
+            : const Locale('he', 'IL');
+        
         return MaterialApp(
           scaffoldMessengerKey: scaffoldMessengerKey,
           localizationsDelegates: const [
@@ -60,8 +67,9 @@ class App extends StatelessWidget {
           ],
           supportedLocales: const [
             Locale("he", "IL"),
+            Locale("en", "US"),
           ],
-          locale: const Locale("he", "IL"),
+          locale: locale,
           title: 'אוצריא',
           theme: state.isDarkMode
               ? ThemeData.dark(useMaterial3: true).copyWith(
